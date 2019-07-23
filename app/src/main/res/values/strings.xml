@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">PartialScreenshots</string>
+    <string name="screenshot">Screen shot button</string>
+    <string name="real_name">RCL\'s Screen Capture</string>
+</resources>

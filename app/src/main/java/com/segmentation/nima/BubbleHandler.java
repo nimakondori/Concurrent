@@ -1,0 +1,57 @@
+package com.segmentation.nima;
+
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowManager;
+import com.segmentation.nima.BubbleService;
+
+
+// Pay attention to how ClipHandler class uses BubbleService.
+public class BubbleHandler {
+    private final BubbleService service;
+    private int initialX;
+    private int initialY;
+    private float initialTouchX;
+    private float initialTouchY;
+    private float moveDistance;
+
+    BubbleHandler(BubbleService service) {
+        this.service = service;
+    }
+
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        WindowManager.LayoutParams params = (WindowManager.LayoutParams) view.getLayoutParams();
+        switch (motionEvent.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                moveDistance = 0;
+                initialX = params.x;
+                initialY = params.y;
+                initialTouchX = motionEvent.getRawX();
+                initialTouchY = motionEvent.getRawY();
+                break;
+            case MotionEvent.ACTION_UP:
+                view.performClick();
+                Log.d("Nima", "onTouch: GlobalStop " + BubbleService.stop);
+                if (Float.compare(moveDistance, 100f) >= 0) {
+                    service.checkInCloseRegion(motionEvent.getRawX(), motionEvent.getRawY());
+                    Log.e("Nima","GLOBAL.stop"+ BubbleService.stop);
+                } else {
+
+                    service.startClipMode();
+                }
+                break;
+            case MotionEvent.ACTION_MOVE:
+                params.x = initialX + (int) (motionEvent.getRawX() - initialTouchX);
+                params.y = initialY + (int) (motionEvent.getRawY() - initialTouchY);
+                float distance = motionEvent.getRawX() - initialTouchX
+                        + motionEvent.getRawY() - initialTouchY;
+                moveDistance += Math.abs(distance);
+                service.updateViewLayout(view, params);
+                break;
+        }
+
+        return true;
+    }
+}
+
