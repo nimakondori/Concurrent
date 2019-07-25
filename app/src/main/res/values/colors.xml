@@ -6,5 +6,5 @@
     <color name="mainTheme">#FF252D</color>
     <color name="WHITE">#fff</color>
     <color name="BLACK">#000</color>
-    <color name="transparent">#000000FF</color>
+    <color name="transparent">#00000000</color>
 </resources>
