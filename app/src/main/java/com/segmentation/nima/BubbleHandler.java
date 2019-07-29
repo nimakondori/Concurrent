@@ -35,7 +35,6 @@ public class BubbleHandler {
                 Log.d("Nima", "onTouch: GlobalStop " + BubbleService.stop);
                 if (Float.compare(moveDistance, 100f) >= 0) {
                     service.checkInCloseRegion(motionEvent.getRawX(), motionEvent.getRawY());
-                    Log.e("Nima","GLOBAL.stop"+ BubbleService.stop);
                 } else {
 
                     service.startClipMode();

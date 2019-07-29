@@ -3,6 +3,8 @@ package com.segmentation.nima;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Trace;
 import android.util.Log;
 
@@ -93,7 +95,7 @@ limitations under the License.
             // Need this for finishRecord callback
             c.mQUSEventListener = qusEventListener;
             // TODO: try this hsit out!
-            //c.tfliteOptions.setNumThreads(1);
+//            c.tfliteOptions.setNumThreads(3);
             // Attempt to use GPU if available
             if (!ATTEMPT_GPU) {
                 Log.w(TAG,"Not attempting GPU in this build.");
@@ -205,7 +207,7 @@ limitations under the License.
             }
             return (int) s;
         }
-        private static class SegNetRunner implements Runnable {
+        private static class SegNetRunner extends BubbleService implements Runnable {
             private Interpreter interpreter;
             private String[] input_names, output_names;
             private long[] input_dims;
@@ -224,6 +226,8 @@ limitations under the License.
             private Thread t;
             private Bitmap full_res;
             private ByteBuffer input_bb, segment_bb, landmark_bb;
+
+
             private SegNetRunner(Interpreter _interpreter,
                                  String[] _input_names,
                                  String[] _output_names,
@@ -258,6 +262,7 @@ limitations under the License.
                 landmark_bb = ByteBuffer.allocateDirect(output_size*4);
                 landmark_bb.order(ByteOrder.LITTLE_ENDIAN);
                 t = new Thread(this, "SN Runner");
+                t.setPriority(10);
                 t.start();
             }
             private void stopThread(){
@@ -267,7 +272,7 @@ limitations under the License.
                 }
             }
             private void wakeup(float[] _curr_frame, Bitmap _full_res, int fc) {
-                synchronized (tSync) {
+               synchronized (tSync) {
                     if (isRunning) {
                         Log.e(TAG, "SN" + id + " is still running!");
                         try {
@@ -347,12 +352,19 @@ limitations under the License.
                     long fetch = System.currentTimeMillis() - _w; _w = System.currentTimeMillis();
                     long total = feed+run+fetch;
                     Log.i(TAG,"TFLite took "+feed+" + "+prep+" + "+run+" + "+fetch+" = "+total+"ms");
+                    isRunning = false;
                     //keepNLargestCCs(segment_frame,1);
                     //keepNLargestCCs(landmark_frame,2);
                     // Do something with the result that just got copied into segment_frame
-                    QEL.updateSegmentEvent(segment_frame, landmark_frame, full_res, frame_counter);
-                    isRunning = false;
-                }
+//                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+//                        @Override
+//                        public void run() {
+                            // things to do on the main thread
+                            QEL.updateSegmentEvent(segment_frame, landmark_frame, full_res, frame_counter);
+                        }
+//                      });
+//
+//                }
             }
             private void keepNLargestCCs(byte[] frame, int N) {
                 ArrayList<ConnectedComponent> ccs = new ArrayList<>();
