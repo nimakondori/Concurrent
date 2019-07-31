@@ -26,6 +26,8 @@ import com.segmentation.nima.databinding.ActivityMainBinding;
 
 import com.segmentation.nima.BubbleService;
 
+import org.opencv.android.OpenCVLoader;
+
 public class MainActivity extends AppCompatActivity {
     public static MediaProjection sMediaProjection;
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 5566;
@@ -36,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        OpenCVLoader.initDebug();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             Window w = getWindow();
             w.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);

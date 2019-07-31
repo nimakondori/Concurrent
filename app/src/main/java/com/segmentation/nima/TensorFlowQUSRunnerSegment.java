@@ -5,6 +5,7 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.os.Trace;
 import android.util.Log;
 
@@ -41,7 +42,7 @@ limitations under the License.
     /** A classifier specialized to label images using TensorFlow. */
         private static final String TAG = "nvw-segment";
         private static final boolean ATTEMPT_GPU = false;
-        private static final int NUM_SEGNET_RUNNERS = 4;
+        private static final int NUM_SEGNET_RUNNERS = 2;
         // Config values
         private int input_width, input_height, input_length;
         private float magnitude;
@@ -178,7 +179,7 @@ limitations under the License.
         @Override
         public void close() {
             // Send stop signal to all SNRs
-            for (SegNetRunner c :SNRs)
+                        for (SegNetRunner c :SNRs)
                 c.stopThread();
             // Need to wait for all SNR's to be finished
             int num_stopped = 0;
@@ -305,6 +306,7 @@ limitations under the License.
             }
             public void run() {
                 while (true) {
+                    Process.setThreadPriority(-19);
                     // First, wait until you are woken up by super class
                     synchronized (tSync) {
                         if (notifyFlag)
@@ -322,6 +324,7 @@ limitations under the License.
                             return;
                         }
                     }
+//                    Log.e(TAG, "priority "+Process.getThreadPriority(3));
                     isRunning = true;
                     long _w = System.currentTimeMillis();
                     Trace.beginSection("feed");

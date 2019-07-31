@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
@@ -32,6 +33,11 @@ import com.segmentation.nima.databinding.ClipLayoutBinding;
 import com.segmentation.nima.databinding.ScreensheetBinding;
 import com.segmentation.nima.databinding.TrashLayoutBinding;
 import com.segmentation.nima.env.ImageUtils;
+
+import org.opencv.android.Utils;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
@@ -151,11 +157,11 @@ public class BubbleService extends Service
         private boolean EFCalculated;
 
         // FSM variables
-        public static final int STATE_DISCONNECTED = -1;
-        public static final int STATE_PREVIEW = 0;
-        public static final int STATE_QUALITY = 1;
-        public static final int STATE_SEGMENT = 2;
-        private int currentState = STATE_DISCONNECTED;
+//        public static final int STATE_DISCONNECTED = -1;
+//        public static final int STATE_PREVIEW = 0;
+//        public static final int STATE_QUALITY = 1;
+//        public static final int STATE_SEGMENT = 2;
+//        private int currentState = STATE_DISCONNECTED;
         private final Object FSM_sync = new Object();
         private QUSEventListener QEL;
 
@@ -566,12 +572,12 @@ public class BubbleService extends Service
                             @Override
                             public void onImageAvailable(ImageReader reader) {
                                 try {
-                                    getWindowManager().updateViewLayout(iV, mScreenSheetBindingParams);
+//                                    getWindowManager().updateViewLayout(iV, mScreenSheetBindingParams);
                                    // QEL.updateSegmentEvent(recorded_segment_data, recorded_landmark_data, bit, 0);
 
                                     //Needs to be done here to avoid errors
                                         resizedOutputBitmap = Bitmap.createBitmap(ClipRegioBubble[2], ClipRegioBubble[3], Bitmap.Config.ARGB_8888);
-                                        iV.setImageBitmap(resizedOutputBitmap);
+
                                         finalTime = System.currentTimeMillis() -initialTime;
                                         initialTime = System.currentTimeMillis();
 //                                        Log.d("Nima", "onImageAvailable: time between frames = " + finalTime);
@@ -591,12 +597,14 @@ public class BubbleService extends Service
                                                     bitmapCut = Bitmap.createBitmap(bitmap,
                                                             clipRegion[0], clipRegion[1], clipRegion[2], clipRegion[3]);
 //                                            Log.e("nima", "Count:" + count);
-                                                    final Canvas canvas = new Canvas(resizedOutputBitmap);
-                                                    canvas.drawBitmap(outputBitmap, outputToResizeTransform, null);
                                             count++;
                                             // The GLOBAL.stop is checked there to avoid the error when terminating the application
                                             if (!stop && isProcessDone) {
                                                 processImage(bitmapCut, bitmap);
+                                                final Canvas canvas = new Canvas(resizedOutputBitmap);
+                                                Bitmap finalBitmap = detectEdges(outputBitmap);
+                                                canvas.drawBitmap(finalBitmap, outputToResizeTransform, null);
+                                                iV.setImageBitmap(finalBitmap);
                                             }
                                             image.close();
                                         }
@@ -617,10 +625,8 @@ public class BubbleService extends Service
 // ======================================================================================================================= Run network ========================================================================================================
 //            runInBackground(() -> {
                 if (SegmentRunner != null) {
-
                     // Add a frame counter to count how many frames were segmented?????
                     SegmentRunner.scoreImage(bit, bitmapCut, 0);
-                    iV.setImageBitmap(resizedOutputBitmap);
                     isProcessDone = true;
 //                        double processTime = System.currentTimeMillis() - initial;
 //                        Log.i("Nima", "ScoreTime = " + processTime);
@@ -718,6 +724,29 @@ public class BubbleService extends Service
             height = getResources().getDimensionPixelSize(resourceId);
         }
         return height;
+    }
+    private Bitmap detectEdges(Bitmap bitmap) {
+        Mat rgba = new Mat();
+        Utils.bitmapToMat(bitmap, rgba);
+
+        Mat edges = new Mat(rgba.size(), CvType.CV_8UC1);
+        Imgproc.cvtColor(rgba, edges, Imgproc.COLOR_RGB2GRAY, 4);
+        Imgproc.Canny(edges, edges, 80, 100);
+
+        // Don't do that at home or work it's for visualization purpose.
+        Bitmap resultBitmap = Bitmap.createBitmap(edges.cols(), edges.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(edges, resultBitmap);
+        int[] pixels = new int[resultBitmap.getHeight()*resultBitmap.getWidth()];
+        resultBitmap.getPixels(pixels, 0, resultBitmap.getWidth(), 0, 0, resultBitmap.getWidth(), resultBitmap.getHeight());
+        for (int i=0; i<resultBitmap.getWidth()*resultBitmap.getHeight(); i++)
+        {
+            if (pixels[i]== Color.BLACK)
+            pixels[i] = 0x00000000;
+            else if (pixels[i] == Color.WHITE)
+                pixels[i] = 0x8000FF00;
+        }
+        resultBitmap.setPixels(pixels, 0, resultBitmap.getWidth(), 0, 0, resultBitmap.getWidth(), resultBitmap.getHeight());
+        return resultBitmap;
     }
 
 
