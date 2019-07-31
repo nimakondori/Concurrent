@@ -306,7 +306,7 @@ limitations under the License.
             }
             public void run() {
                 while (true) {
-                    Process.setThreadPriority(-19);
+                    //Process.setThreadPriority(-19);
                     // First, wait until you are woken up by super class
                     synchronized (tSync) {
                         if (notifyFlag)

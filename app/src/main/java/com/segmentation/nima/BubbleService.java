@@ -2,6 +2,7 @@ package com.segmentation.nima;
 
 import android.annotation.SuppressLint;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -26,10 +27,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.segmentation.nima.databinding.BubbleLayoutBinding;
 import com.segmentation.nima.databinding.ClipLayoutBinding;
+import com.segmentation.nima.databinding.BottomsheetBinding;
 import com.segmentation.nima.databinding.ScreensheetBinding;
 import com.segmentation.nima.databinding.TrashLayoutBinding;
 import com.segmentation.nima.env.ImageUtils;
@@ -46,7 +49,7 @@ import static android.view.View.VISIBLE;
 import static com.segmentation.nima.MainActivity.sMediaProjection;
 
 public class BubbleService extends Service
-        implements QUSEventListener{
+        implements QUSEventListener {
 
         private static WindowManager mWindowManager;
         private BubbleLayoutBinding mBubbleLayoutBinding;
@@ -60,7 +63,8 @@ public class BubbleService extends Service
         private VirtualDisplay virtualDisplay;
         private ScreensheetBinding mScreenSheetBinding;
         private WindowManager.LayoutParams mScreenSheetBindingParams;
-        private WindowManager.LayoutParams mLayoutBottomSheetParams;
+        private BottomsheetBinding mBottomsheetBinding;
+        private WindowManager.LayoutParams mBottomsheetlayoutParams;
 //      private Results display_results = new Results();
         private Handler handler;
         private HandlerThread handlerThread;
@@ -71,7 +75,7 @@ public class BubbleService extends Service
         private Bitmap bit;
         private ImageView iV;
         public int[] ClipRegioBubble = new int[4];
-        public byte[] segment_frame, landmark_frame;
+        public static boolean displaySegment = false;
 
     //====================================================================================== QUS  Variables ===================================================================================
         // ---------------------------------- Network Constants ----------------------------------------
@@ -85,15 +89,7 @@ public class BubbleService extends Service
         public static final int OTHER_IDX = 14;
 
         // Quality Net Constants
-        private static final String CNN_FILENAME = "CNN";
-        private static final String RNN_FILENAME = "RNN";
-        private static final String CNN_INPUT_NAME = "input";
-        private static final String CNN_OUTPUT_NAME = "output_node0";
-        private static final String RNN_INPUT_NAME = "RNN_input";
-        private static final String RNN_QUALITY_NAME = "output_node0";
-        private static final String RNN_VIEW_NAME = "output_node1";
-        private static final int NUM_QUAL_CLASSES = 1;
-        public static final int NUM_VIEW_CLASSES = 15; // = length(VIEW_NAMES) - 1
+
         private static final int CNN_INPUT_WIDTH = 120;
         private static final int CNN_INPUT_HEIGHT = 120;
         private static final int RNN_INPUT_FRAMES = 10;
@@ -116,8 +112,6 @@ public class BubbleService extends Service
         // -------------------------------------- App Constants ----------------------------------------
         // Shared Constants
         private final String TAG = "NKo-main";
-        private static final int PREVIEW_WIDTH = 640;
-        private static final int PREVIEW_HEIGHT = 640;
         private static final String[] CINE_NAMES = {"AP4_mo2","AP2_mo2"};
         public static final int AP4_VIEW_IDX = 0;
         public static final int AP2_VIEW_IDX = 1;
@@ -154,15 +148,10 @@ public class BubbleService extends Service
         private byte[] recorded_landmark_data;                     // recorded 128x128 landmark
         private android.graphics.Matrix outputToResizeTransform;    // resizes the 128x128 output map to the preview dims
         private static boolean[] valid_segment_frames;
-        private boolean EFCalculated;
+        public boolean EFCalculated;
+        private TextView tV;
+        private BottomSheetHandler mBottomSheetHandler;
 
-        // FSM variables
-//        public static final int STATE_DISCONNECTED = -1;
-//        public static final int STATE_PREVIEW = 0;
-//        public static final int STATE_QUALITY = 1;
-//        public static final int STATE_SEGMENT = 2;
-//        private int currentState = STATE_DISCONNECTED;
-        private final Object FSM_sync = new Object();
         private QUSEventListener QEL;
 
 // ======================================================================================= Timing Analysis Vars ==================================================================================
@@ -189,8 +178,10 @@ public class BubbleService extends Service
 //            Log.d("kanna", "mediaProjection alive");
 //        }
 //          Init segmentation buffers
-            // TODO: Should I change this??
+             mBottomSheetHandler = new BottomSheetHandler(this);
             iV = new ImageView(this);
+            tV = new TextView(this);
+            mBottomSheetHandler.settV1(tV);
             display_results.setiV(iV);
             QEL = this;
             recorded_segment_data = new byte[SEGNET_INPUT_WIDTH * SEGNET_INPUT_HEIGHT * SEGMENT_RECORD_LENGTH];   // 128*128*100*4 bytes = 6.25 MB
@@ -235,6 +226,15 @@ public class BubbleService extends Service
             getWindowManager().addView(mBubbleLayoutBinding.getRoot(), mBubbleLayoutParams);
             // Inflate the screensheet here add view later
             mScreenSheetBinding = ScreensheetBinding.inflate(layoutInflater);
+
+            mBottomsheetBinding = BottomsheetBinding.inflate(layoutInflater);
+            if(mBottomsheetlayoutParams == null){
+                mBottomsheetlayoutParams = buildLayoutParamsForBottomSheet(0,0);
+            }
+            getWindowManager().addView(mBottomsheetBinding.getRoot(), mBottomsheetlayoutParams);
+            mBottomsheetBinding.setHandler(mBottomSheetHandler);
+            mBottomsheetBinding.getRoot().setVisibility(View.GONE);
+
 
             if(SegmentRunner == null)
             {
@@ -323,6 +323,7 @@ public class BubbleService extends Service
             isClipMode = false;
             stop = false;
             ClipRegioBubble = clipRegion;
+
             // Init output resize transform
 
 
@@ -331,16 +332,12 @@ public class BubbleService extends Service
                     ClipRegioBubble[2], ClipRegioBubble[3],
                     0, false);
 
-            // Initialize the QUS runner after the clip layout is chosen
-            // This helps when you want to reselect the clip layout
-
-            //getWindowManager().removeView(mClipLayoutBinding.getRoot());    //This is the clip region view where you choose to take the screenshot.
-            // By not removing the view the box will stay on the screen indefinitely
             if (clipRegion[2] < 50 || clipRegion[3] < 50) {
                 Toast.makeText(this, "Region is too small. Try Again", Toast.LENGTH_SHORT).show();
                 mClipLayoutBinding.getRoot().setVisibility(View.GONE);
                 mBubbleLayoutBinding.getRoot().setVisibility(View.GONE);
                 mScreenSheetBinding.getRoot().setVisibility(View.GONE);
+                mBottomsheetBinding.getRoot().setVisibility(View.GONE);
                 return;
 
             } else {
@@ -351,16 +348,13 @@ public class BubbleService extends Service
                 iV = mScreenSheetBinding.ImageView;
                 screenshot(clipRegion);
                 mClipLayoutBinding.getRoot().setVisibility(View.GONE);
+                mBottomsheetBinding.getRoot().setVisibility(View.VISIBLE);
             }
             mBubbleLayoutBinding.getRoot().setBackground(getDrawable(R.drawable.video_camera));
 
         }
         public void screenshot(int[] clipRegion){
-//            mLayoutBottomSheetBinding.getRoot().setVisibility(View.VISIBLE);
-//        mLayoutBottomSheetBinding.setHandler(new BottomSheetHandler(this));
-//            mLayoutBottomSheetBinding.setResult(display_results);
-//            mClipLayoutBinding.setHandler(null);
-//            mBubbleLayoutBinding.setHandler(null);
+
             shotScreen(clipRegion);
 
         }
@@ -410,9 +404,9 @@ public class BubbleService extends Service
                 if (mClipLayoutBinding != null) {
                     mWindowManager.removeView(mClipLayoutBinding.getRoot());
                 }
-//                if (mLayoutBottomSheetBinding != null) {
-//                    mWindowManager.removeView(mLayoutBottomSheetBinding.getRoot());
-//                }
+                if (mBottomsheetBinding != null) {
+                    mWindowManager.removeView(mBottomsheetBinding.getRoot());
+                }
                 mWindowManager = null;
             }
             if (sMediaProjection != null) {
@@ -489,6 +483,38 @@ public class BubbleService extends Service
             params.y = y;
             return params;
         }
+
+    private WindowManager.LayoutParams buildLayoutParamsForBottomSheet(int x, int y) {
+        WindowManager.LayoutParams params;
+        if (Build.VERSION.SDK_INT >= 26) {
+            params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSPARENT);
+        } else if(Build.VERSION.SDK_INT >= 23) {
+            //noinspection deprecation
+            params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSPARENT);
+        } else {
+            //noinspection deprecation
+            params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_TOAST,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSPARENT);
+        }
+        params.gravity = Gravity.BOTTOM | Gravity.START;
+        params.x = x;
+        params.y = y;
+        return params;
+    }
 
         private WindowManager.LayoutParams buildLayoutParamsForClip() {
             WindowManager.LayoutParams params;
@@ -605,6 +631,7 @@ public class BubbleService extends Service
                                                 Bitmap finalBitmap = detectEdges(outputBitmap);
                                                 canvas.drawBitmap(finalBitmap, outputToResizeTransform, null);
                                                 iV.setImageBitmap(finalBitmap);
+                                                displaySegment();
                                             }
                                             image.close();
                                         }
@@ -617,6 +644,7 @@ public class BubbleService extends Service
             }
         }
         protected void processImage(Bitmap bitmapCut, Bitmap bitmap) {
+            EFCalculated = false;
             // get proper transformation matrix
             Matrix prev2seg = ImageUtils.getTransformationMatrix(bitmapCut.getWidth(), bitmapCut.getHeight(), SEGNET_INPUT_WIDTH, SEGNET_INPUT_HEIGHT, 0, false);
             bit = Bitmap.createBitmap(SEGNET_INPUT_WIDTH, SEGNET_INPUT_HEIGHT, Bitmap.Config.ARGB_8888); // creates a new bitmap to draw the scaled bitmapCut onto.
@@ -680,18 +708,7 @@ public class BubbleService extends Service
                             0x00000000;
                 }
                 outputBitmap.setPixels(output_pixels, 0, SEGNET_INPUT_WIDTH, 0, 0, SEGNET_INPUT_WIDTH, SEGNET_INPUT_HEIGHT);
-                // 2. Transform to preview dimensions
 
-
-                // 3. Set imageview bitmap
-                // Commented out for now until we find a way to display it
-//                           }
-//                       });
-
-                // If we are outside of the segment record buffer, stop here
-//                       if(fc >= SEGMENT_RECORD_LENGTH) return;
-
-                // 3. Only record if we are in sync with bitmaps for synchronization purposes
                 System.arraycopy(output_data, 0,
                         recorded_segment_data, fc * SEGNET_INPUT_WIDTH * SEGNET_INPUT_HEIGHT,
                         SEGNET_INPUT_WIDTH * SEGNET_INPUT_HEIGHT);
@@ -709,22 +726,21 @@ public class BubbleService extends Service
                 if (!EFCalculated) runEFCalculator();
     }
 
-
-
     public synchronized void updateEFOutputEvent(float ESVol, float EDVol, float EF, boolean bi){
                 DecimalFormat nf = new DecimalFormat("#0.0");
                 final String str = (ESVol == -1)? "N/A" : nf.format(Math.round(EF * 100.0f))+"%";
+                tV.setText(str);
             Log.d(TAG, "updateEFOutputEvent: str is = " + str);
     }
 
-    public int getStatusBarHeight() {
-        int height = 0;
-        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-        if (resourceId > 0) {
-            height = getResources().getDimensionPixelSize(resourceId);
-        }
-        return height;
-    }
+//    public int getStatusBarHeight() {
+//        int height = 0;
+//        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+//        if (resourceId > 0) {
+//            height = getResources().getDimensionPixelSize(resourceId);
+//        }
+//        return height;
+//    }
     private Bitmap detectEdges(Bitmap bitmap) {
         Mat rgba = new Mat();
         Utils.bitmapToMat(bitmap, rgba);
@@ -748,6 +764,15 @@ public class BubbleService extends Service
         resultBitmap.setPixels(pixels, 0, resultBitmap.getWidth(), 0, 0, resultBitmap.getWidth(), resultBitmap.getHeight());
         return resultBitmap;
     }
+    private boolean displaySegment()
+    {
+        if(displaySegment)
+            mScreenSheetBinding.getRoot().setVisibility(View.VISIBLE);
+        else
+            mScreenSheetBinding.getRoot().setVisibility(View.GONE);
 
+        return true;
+
+    }
 
 }

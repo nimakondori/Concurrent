@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+    <data>
+        <variable name="handler" type="com.segmentation.nima.BottomSheetHandler" />
+        <variable
+            name="service"
+            type="com.segmentation.nima.BubbleService" />
+    </data>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center|bottom"
+        android:background="#99FFFFFF"
+        android:orientation="horizontal"
+        android:layout_marginBottom="20dp"
+        android:onTouch="@{handler::onTouch}">
+        <TextView
+            android:id="@+id/tV"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="Loading"
+            android:textSize="17sp"
+            android:textColor="@color/BLACK"
+            android:padding="10dp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentLeft="true"
+            android:layout_marginLeft="20dp"
+            />
+
+        <TextView
+            android:id="@+id/segButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/BLACK"
+            android:hint="Press for segmentation"
+            android:textSize="17sp"
+            android:padding="20dp"
+            android:layout_marginRight="20dp"
+            android:layout_alignParentRight="true"/>
+    </RelativeLayout>
+
+</layout>

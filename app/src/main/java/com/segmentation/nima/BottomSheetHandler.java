@@ -3,32 +3,52 @@ package com.segmentation.nima;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
 
-public class BottomSheetHandler {
+import androidx.databinding.BaseObservable;
+import androidx.databinding.Bindable;
+
+import org.w3c.dom.Text;
+
+public class BottomSheetHandler extends BaseObservable {
 
     private final BubbleService service;
     private int initialX;
     private int initialY;
     private float initialTouchX;
     private float initialTouchY;
-    private float moveDistance;
+    private TextView tV1;
+
     BottomSheetHandler(BubbleService service) {
         this.service = service;
     }
+
+    @Bindable
+    public TextView gettV1() {
+        return tV1;
+    }
+
+    public void settV1(TextView tV1) {
+        this.tV1 = tV1;
+        notifyPropertyChanged(BR.tV1);
+    }
+
 
     public boolean onTouch(View view, MotionEvent motionEvent) {
         WindowManager.LayoutParams params = (WindowManager.LayoutParams) view.getLayoutParams();
         switch (motionEvent.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                moveDistance = 0;
                 initialX = params.x;
                 initialY = params.y;
                 initialTouchX = motionEvent.getRawX();
                 initialTouchY = motionEvent.getRawY();
+                service.displaySegment=true;
+
                 break;
             case MotionEvent.ACTION_UP:
                 view.performClick();
-                service.trashLayoutRemove();
+                service.displaySegment=false;
+
                 break;
             case MotionEvent.ACTION_MOVE:
                 // params.x = initialX + (int) (motionEvent.getRawX() - initialTouchX);
@@ -37,13 +57,14 @@ public class BottomSheetHandler {
                 // It it highly possible that the Gravity has some effect here
                 // Yes it is due to the fact that the bottom sheet is gravitated at the bottom but the bubble starts at the top
                 params.y = initialY - (int) (motionEvent.getRawY() - initialTouchY);
-                float distance = motionEvent.getRawX() - initialTouchX
-                        + motionEvent.getRawY() - initialTouchY;
-                moveDistance += Math.abs(distance);
                 service.updateViewLayout(view, params);
+                service.trashLayoutRemove();
+                service.displaySegment=true;
+
                 break;
 
         }
         return true;
     }
+
 }
