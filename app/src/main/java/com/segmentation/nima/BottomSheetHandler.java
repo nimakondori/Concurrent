@@ -3,12 +3,11 @@ package com.segmentation.nima;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.databinding.BaseObservable;
 import androidx.databinding.Bindable;
-
-import org.w3c.dom.Text;
 
 public class BottomSheetHandler extends BaseObservable {
 
@@ -18,6 +17,7 @@ public class BottomSheetHandler extends BaseObservable {
     private float initialTouchX;
     private float initialTouchY;
     private TextView tV1;
+    private SeekBar seekBar;
 
     BottomSheetHandler(BubbleService service) {
         this.service = service;
@@ -32,7 +32,15 @@ public class BottomSheetHandler extends BaseObservable {
         this.tV1 = tV1;
         notifyPropertyChanged(BR.tV1);
     }
+    @Bindable
+    public SeekBar getSeekBar() {
+        return seekBar;
+    }
 
+    public void setSeekBar(SeekBar seekBar) {
+        this.seekBar = seekBar;
+        notifyPropertyChanged(BR.seekBar);
+    }
 
     public boolean onTouch(View view, MotionEvent motionEvent) {
         WindowManager.LayoutParams params = (WindowManager.LayoutParams) view.getLayoutParams();
@@ -66,5 +74,6 @@ public class BottomSheetHandler extends BaseObservable {
         }
         return true;
     }
+
 
 }

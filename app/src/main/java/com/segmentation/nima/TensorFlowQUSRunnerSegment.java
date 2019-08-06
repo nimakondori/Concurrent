@@ -163,7 +163,7 @@ limitations under the License.
             input_bitmap.getPixels(input_values, 0, input_bitmap.getWidth(), 0, 0, input_bitmap.getWidth(), input_bitmap.getHeight());
             // Preprocess the image data from 0-255 int to normalized float based on the provided parameters.
             for (int i = 0; i < input_values.length; ++i) {
-                // Only look at 1 of the RGB values to same some CPU
+                // Only look at 1 of the RGB values to save some CPU
                 curr_frame[i] = (input_values[i] & 0xff)/magnitude;
             }
             // Wait for current SNR to finish, then launch it again
