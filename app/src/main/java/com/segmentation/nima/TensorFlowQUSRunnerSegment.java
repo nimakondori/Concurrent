@@ -42,7 +42,7 @@ limitations under the License.
     /** A classifier specialized to label images using TensorFlow. */
         private static final String TAG = "nvw-segment";
         private static final boolean ATTEMPT_GPU = false;
-        private static final int NUM_SEGNET_RUNNERS = 2;
+        private static final int NUM_SEGNET_RUNNERS = 3;
         // Config values
         private int input_width, input_height, input_length;
         private float magnitude;
@@ -96,7 +96,7 @@ limitations under the License.
             // Need this for finishRecord callback
             c.mQUSEventListener = qusEventListener;
             // TODO: try this hsit out!
-//            c.tfliteOptions.setNumThreads(3);
+            //c.tfliteOptions.setNumThreads(2);
             // Attempt to use GPU if available
             if (!ATTEMPT_GPU) {
                 Log.w(TAG,"Not attempting GPU in this build.");
@@ -328,13 +328,14 @@ limitations under the License.
                     isRunning = true;
                     long _w = System.currentTimeMillis();
                     Trace.beginSection("feed");
-                    if(input_bb == null) return;
+                    if (input_bb == null) return;
                     input_bb.rewind();
-                    for(int i = 0; i < frame_size*input_length; i++) {
+                    for (int i = 0; i < frame_size * input_length; i++) {
                         input_bb.putFloat(input_frame[i]);
                     }
                     Trace.endSection();
-                    long feed = System.currentTimeMillis() - _w; _w = System.currentTimeMillis();
+                    long feed = System.currentTimeMillis() - _w;
+                    _w = System.currentTimeMillis();
                     // Prepare in/outputs in desired format
                     Object[] input_obj = {input_bb};
                     Map<Integer, Object> output_map = new HashMap<>();
@@ -342,32 +343,36 @@ limitations under the License.
                     landmark_bb.rewind();
                     output_map.put(0, segment_bb);
                     output_map.put(1, landmark_bb);
-                    long prep = System.currentTimeMillis() - _w; _w = System.currentTimeMillis();
+                    long prep = System.currentTimeMillis() - _w;
+                    _w = System.currentTimeMillis();
                     Trace.beginSection("run");
                     interpreter.runForMultipleInputsOutputs(input_obj, output_map);
                     Trace.endSection();
-                    long run = System.currentTimeMillis() - _w; _w = System.currentTimeMillis();
+                    long run = System.currentTimeMillis() - _w;
+                    _w = System.currentTimeMillis();
                     //System.arraycopy(sn_outputs, 0, segment_frame, 0, output_size);
                     for (int i = 0; i < output_size; i++) {
-                        segment_frame[i] = (segment_bb.getFloat(i*4) > BubbleService.THRESHOLD) ? (byte) 0x01 : (byte) 0x00;
-                        landmark_frame[i] = (landmark_bb.getFloat(i*4) > BubbleService.THRESHOLD) ? (byte) 0x01 : (byte) 0x00;
+                        segment_frame[i] = (segment_bb.getFloat(i * 4) > BubbleService.THRESHOLD) ? (byte) 0x01 : (byte) 0x00;
+                        landmark_frame[i] = (landmark_bb.getFloat(i * 4) > BubbleService.THRESHOLD) ? (byte) 0x01 : (byte) 0x00;
                     }
-                    long fetch = System.currentTimeMillis() - _w; _w = System.currentTimeMillis();
-                    long total = feed+run+fetch;
-                    Log.i(TAG,"TFLite took "+feed+" + "+prep+" + "+run+" + "+fetch+" = "+total+"ms");
+                    long fetch = System.currentTimeMillis() - _w;
+                    _w = System.currentTimeMillis();
+                    long total = feed + run + fetch;
+                    Log.i(TAG, "TFLite took " + feed + " + " + prep + " + " + run + " + " + fetch + " = " + total + "ms");
                     isRunning = false;
                     //keepNLargestCCs(segment_frame,1);
                     //keepNLargestCCs(landmark_frame,2);
                     // Do something with the result that just got copied into segment_frame
-//                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-//                        @Override
-//                        public void run() {
-                            // things to do on the main thread
-                            QEL.updateSegmentEvent(segment_frame, landmark_frame, full_res, frame_counter);
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if(mBubbleLayoutBinding != null)
+                            updateViewLayout(mBubbleLayoutBinding.getRoot(), mBubbleLayoutParams);
                         }
-//                      });
-//
-//                }
+                    });
+                    // things to do on the main thread
+                    QEL.updateSegmentEvent(segment_frame, landmark_frame, full_res, frame_counter);
+                }
             }
             private void keepNLargestCCs(byte[] frame, int N) {
                 ArrayList<ConnectedComponent> ccs = new ArrayList<>();

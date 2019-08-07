@@ -52,6 +52,7 @@ public class BottomSheetHandler extends BaseObservable {
                 initialTouchY = motionEvent.getRawY();
                 service.displaySegment=true;
 
+
                 break;
             case MotionEvent.ACTION_UP:
                 view.performClick();

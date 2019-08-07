@@ -1,59 +1,61 @@
 package com.segmentation.nima;
 
-        import android.annotation.SuppressLint;
-        import android.app.Service;
-        import android.content.Intent;
-        import android.content.res.Configuration;
-        import android.graphics.Bitmap;
-        import android.graphics.Canvas;
-        import android.graphics.Color;
-        import android.graphics.Matrix;
-        import android.graphics.PixelFormat;
-        import android.graphics.Point;
-        import android.hardware.display.DisplayManager;
-        import android.hardware.display.VirtualDisplay;
-        import android.media.Image;
-        import android.media.ImageReader;
-        import android.os.Build;
-        import android.os.Handler;
-        import android.os.HandlerThread;
-        import android.os.IBinder;
-        import android.util.DisplayMetrics;
-        import android.util.Log;
-        import android.view.Display;
-        import android.view.Gravity;
-        import android.view.LayoutInflater;
-        import android.view.View;
-        import android.view.WindowManager;
-        import android.widget.ImageView;
-        import android.widget.SeekBar;
-        import android.widget.TextView;
-        import android.widget.Toast;
+import android.annotation.SuppressLint;
+import android.app.Service;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.PixelFormat;
+import android.graphics.Point;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
+import android.media.Image;
+import android.media.ImageReader;
+import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.IBinder;
+import android.os.SystemClock;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.Display;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.SeekBar;
+import android.widget.TextView;
+import android.widget.Toast;
 
-        import com.segmentation.nima.databinding.BubbleLayoutBinding;
-        import com.segmentation.nima.databinding.ClipLayoutBinding;
-        import com.segmentation.nima.databinding.BottomsheetBinding;
-        import com.segmentation.nima.databinding.ScreensheetBinding;
-        import com.segmentation.nima.databinding.TrashLayoutBinding;
-        import com.segmentation.nima.env.ImageUtils;
+import com.segmentation.nima.databinding.BottomsheetBinding;
+import com.segmentation.nima.databinding.BubbleLayoutBinding;
+import com.segmentation.nima.databinding.ClipLayoutBinding;
+import com.segmentation.nima.databinding.ScreensheetBinding;
+import com.segmentation.nima.databinding.TrashLayoutBinding;
+import com.segmentation.nima.env.ImageUtils;
 
-        import org.opencv.android.Utils;
-        import org.opencv.core.CvType;
-        import org.opencv.core.Mat;
-        import org.opencv.imgproc.Imgproc;
+import org.opencv.android.Utils;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
-        import java.nio.ByteBuffer;
-        import java.text.DecimalFormat;
+import java.nio.ByteBuffer;
+import java.text.DecimalFormat;
 
-        import static android.view.View.VISIBLE;
-        import static com.segmentation.nima.MainActivity.sMediaProjection;
+import static android.view.View.VISIBLE;
+import static com.segmentation.nima.MainActivity.sMediaProjection;
 
 public class BubbleService extends Service
         implements QUSEventListener {
 
     private static WindowManager mWindowManager;
-    private BubbleLayoutBinding mBubbleLayoutBinding;
-    private WindowManager.LayoutParams mBubbleLayoutParams;
+    public  BubbleLayoutBinding mBubbleLayoutBinding;
+    public  WindowManager.LayoutParams mBubbleLayoutParams;
     private TrashLayoutBinding mTrashLayoutBinding;
     private WindowManager.LayoutParams mTrashLayoutParams;
     private ClipLayoutBinding mClipLayoutBinding;
@@ -79,7 +81,8 @@ public class BubbleService extends Service
     public int[] ClipRegioBubble = new int[4];
     public static boolean displaySegment = false;
     private SeekBar mSeekBar;
-    public static float depth = 0.0f;
+    public static float depth = 10.0f;
+    private String EF_string;
 
 
     //====================================================================================== QUS  Variables ===================================================================================
@@ -127,7 +130,8 @@ public class BubbleService extends Service
     private static final float ALPHA = 0.1f;
 
     // Segment Constants
-    private static final int SEGMENT_RECORD_LENGTH = 45; // NOTE: THIS MUST BE <= # of .bmps
+    // not final anymore
+    public static int SEGMENT_RECORD_LENGTH = 60; // NOTE: THIS MUST BE <= # of .bmps
     // Max heart rate before aliasing = 90 bmp?
     // Min heart rate capturable = 45 bpm
     private static final int INITIAL_DEPTH_SETTING = 100; // [mm]
@@ -202,6 +206,7 @@ public class BubbleService extends Service
         // Create output bitmaps
         outputBitmap = Bitmap.createBitmap(SEGNET_INPUT_WIDTH, SEGNET_INPUT_HEIGHT, Bitmap.Config.ARGB_8888);
         output_pixels = new int[SEGNET_INPUT_WIDTH * SEGNET_INPUT_HEIGHT];
+        mEFCalculator.setDepth(depth);
         initial();
 // ======================================================================= From TF Lite app to enable background image processing ========================================================
         handlerThread = new HandlerThread("Inference");
@@ -247,6 +252,7 @@ public class BubbleService extends Service
         mSeekBar.setProgress(INITIAL_DEPTH_SETTING);
         addListenerOnDepthSeekBar();
         depth_textview = mBottomsheetBinding.tVDepth;
+        tV = mBottomsheetBinding.tV;
 
         if(SegmentRunner == null)
         {
@@ -298,7 +304,7 @@ public class BubbleService extends Service
             mTrashLayoutBinding.getRoot().setVisibility(View.GONE);
         }
     }
-    //============================================================================ Makes the trashlayout to show up ======================================================================================================
+    //============================================================================ Makes the trash layout show up ======================================================================================================
     public void updateViewLayout(View view, WindowManager.LayoutParams params) {
         mTrashLayoutBinding.getRoot().setVisibility(VISIBLE);
         getWindowManager().updateViewLayout(view, params);
@@ -605,11 +611,9 @@ public class BubbleService extends Service
                         public void onImageAvailable(ImageReader reader) {
                             try {
 //                                    getWindowManager().updateViewLayout(iV, mScreenSheetBindingParams);
-                                // QEL.updateSegmentEvent(recorded_segment_data, recorded_landmark_data, bit, 0);
-
                                 //Needs to be done here to avoid errors
                                 resizedOutputBitmap = Bitmap.createBitmap(ClipRegioBubble[2], ClipRegioBubble[3], Bitmap.Config.ARGB_8888);
-
+                                tV.setText("EF: "+ EF_string );
                                 finalTime = System.currentTimeMillis() -initialTime;
                                 initialTime = System.currentTimeMillis();
 //                                        Log.d("Nima", "onImageAvailable: time between frames = " + finalTime);
@@ -631,6 +635,7 @@ public class BubbleService extends Service
 //                                            Log.e("nima", "Count:" + count);
                                     count++;
                                     // The GLOBAL.stop is checked there to avoid the error when terminating the application
+
                                     if (!stop && isProcessDone) {
                                         processImage(bitmapCut, bitmap,frame_counter);
                                         frame_counter++;
@@ -644,7 +649,23 @@ public class BubbleService extends Service
                                         iV.setImageBitmap(finalBitmap);
                                         displaySegment();
                                     }
-                                    image.close();
+                                    image.close();long downTime = SystemClock.uptimeMillis();
+                                    long eventTime = SystemClock.uptimeMillis() + 100;
+                                    float x = 20.0f;
+                                    float y = 20.0f;
+// List of meta states found here: developer.android.com/reference/android/view/KeyEvent.html#getMetaState()
+                                    int metaState = 0;
+                                    MotionEvent motionEvent = MotionEvent.obtain(
+                                            downTime,
+                                            eventTime,
+                                            MotionEvent.ACTION_DOWN,
+                                            x,
+                                            y,
+                                            metaState
+                                    );
+//// Dispatch touch event to view
+                                    mScreenSheetBinding.getRoot().dispatchTouchEvent(motionEvent);
+
                                 }
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -688,7 +709,6 @@ public class BubbleService extends Service
 
     public void runEFCalculator() {
         Log.i(TAG,"buffer filled, running EF calculation");
-
         //synchronized (FSM_sync){currentState = STATE_PREVIEW;}
 
         // Invalidate all recorded segmentations
@@ -696,12 +716,10 @@ public class BubbleService extends Service
             valid_segment_frames[i] = false;
 
         // Run LV volume estimation and calc EF
-        new Thread(new Runnable() {
-            public void run() {
-                mEFCalculator.setRecordedData(recorded_segment_data, recorded_landmark_data);
-                mEFCalculator.setLVAreas(current_view);
-                mEFCalculator.updateResults();
-            }
+        new Thread(() -> {
+            mEFCalculator.setRecordedData(recorded_segment_data, recorded_landmark_data);
+            mEFCalculator.setLVAreas(current_view);
+            mEFCalculator.updateResults();
         }).start();
 
         // TODO: remove this for realtime
@@ -736,17 +754,24 @@ public class BubbleService extends Service
         for (int i = 0; i < SEGMENT_RECORD_LENGTH; i++) {
             if (!valid_segment_frames[i]) return;
         }
-        if (!EFCalculated) runEFCalculator();
+//        runInBackground(new Runnable() {
+//            @Override
+//            public void run() {
+                if (!EFCalculated) runEFCalculator();
+//            }
+//        });
     }
 
     public synchronized void updateEFOutputEvent(float ESVol, float EDVol, float EF, boolean bi){
         DecimalFormat nf = new DecimalFormat("#0.0");
         final String str = (ESVol == -1)? "N/A" : nf.format(Math.round(EF * 100.0f))+"%";
-        tV.setText(str);
+//        tV.setText(str);
+        EF_string = str;
         Log.d(TAG, "updateEFOutputEvent: str is = " + str);
     }
+//TODO remember to fix the status bar
 
-    //    public int getStatusBarHeight() {
+//  public int getStatusBarHeight() {
 //        int height = 0;
 //        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
 //        if (resourceId > 0) {

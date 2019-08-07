@@ -19,6 +19,7 @@
             android:id="@+id/tV"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:hint="Loading"
             android:textSize="17sp"
             android:textColor="@color/BLACK"
             android:padding="10dp"
