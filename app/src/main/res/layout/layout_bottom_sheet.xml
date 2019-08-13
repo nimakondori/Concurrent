@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:tools="http://schemas.android.com/tools"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+<data>
+        <variable
+            name="handler"
+            type="com.segmentation.nima.BottomSheetHandler" />
+        <variable
+            name="result"
+            type="com.segmentation.nima.ResultsBinding" />
+</data>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/semi_transparent"
+        android:layout_marginLeft="5dp"
+        android:layout_marginRight="5dp"
+        android:gravity="center|bottom"
+        android:orientation="vertical"
+        android:onTouch="@{handler::onTouch}"
+        >
+
+        <TextView
+            android:id="@+id/Btext1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@{result.res1}"
+            android:textColor="@color/BLACK"
+            android:textSize="16sp"
+            />
+
+        <com.segmentation.nima.GoalProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="#1a1a1a"
+            app:barThickness="40dp"
+            app:goalIndicatorHeight="60dp"
+            app:goalIndicatorThickness="3dp"
+            app:unfilledSectionColor="#565A5C" />
+
+    </LinearLayout>
+
+</layout>

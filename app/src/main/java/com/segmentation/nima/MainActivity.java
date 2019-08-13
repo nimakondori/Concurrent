@@ -14,17 +14,15 @@ import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.databinding.DataBindingUtil;
-import com.segmentation.nima.databinding.ActivityMainBinding;
 
-import com.segmentation.nima.BubbleService;
+import com.segmentation.nima.databinding.ActivityMainBinding;
 
 import org.opencv.android.OpenCVLoader;
 
@@ -34,7 +32,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE = 55566;
     private ActivityMainBinding binding;
     private MediaProjectionManager mProjectionManager;
-    private Animation toBottom;
+    private int pressedButtons;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,23 +49,51 @@ public class MainActivity extends AppCompatActivity {
         checkWritePermission();
 
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-
-        binding.test.setOnClickListener(view -> {
-            if(!checkDrawOverlayPermission()){
+//======================================================================================== onClickListeners ==========================================================================
+        binding.qusButton.setOnClickListener(view -> {
+            //view.performClick();
+            if (!checkDrawOverlayPermission()) {
                 checkDrawOverlayPermission();
                 return;
             }
-            if(!checkWritePermission()){
+            if (!checkWritePermission()) {
                 checkWritePermission();
                 return;
             }
             BubbleService.stop = true;
             BubbleService.hasBeenRunning = false;
-            AnimationUtils.loadAnimation(this, R.anim.to_bottom);
+            pressedButtons = 100; // This means that quality button was pressed and no view was selected (no need for any view)
             startMediaProjection();
         });
-    }
-
+        binding.segButton.setOnClickListener(view -> {
+            if (!checkDrawOverlayPermission()) {
+                checkDrawOverlayPermission();
+                return;
+            }
+            if (!checkWritePermission()) {
+                checkWritePermission();
+                return;
+            }
+            BubbleService.stop = true;
+            BubbleService.hasBeenRunning = false;
+            binding.segButton.setVisibility(View.GONE);
+            binding.qusButton.setVisibility(View.GONE);
+            binding.AP4Button.setVisibility(View.VISIBLE);
+            binding.AP2Button.setVisibility(View.VISIBLE);
+    });
+        binding.AP4Button.setOnClickListener(view -> {
+            pressedButtons = 010;
+            binding.AP4Button.setVisibility(View.GONE);
+            binding.AP2Button.setVisibility(View.GONE);
+            startMediaProjection();
+        });
+        binding.AP2Button.setOnClickListener(view -> {
+            pressedButtons = 001;
+            binding.AP4Button.setVisibility(View.GONE);
+            binding.AP2Button.setVisibility(View.GONE);
+            startMediaProjection();
+        });
+}
     private boolean checkWritePermission() {
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -127,7 +154,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume(){
 //        if (sMediaProjection == null) {
         if(BubbleService.hasBeenRunning) {
-            binding.test.setVisibility(View.VISIBLE);
+            binding.segButton.setVisibility(View.VISIBLE);
+            binding.qusButton.setVisibility(View.VISIBLE);
 // ============================================================== When the app resumes just stop any possible services running previously ===================================================================
 // ===================================================== Since the binding button is visible, the user can click and start the service all over again =======================================================
 // ===================================================================== remember it only happens if the MediaPorjection is Null ============================================================================
@@ -137,12 +165,11 @@ public class MainActivity extends AppCompatActivity {
         }
 //      }
         super.onResume();
-
     }
 
     private void startBubble() {
-        binding.test.setVisibility(View.GONE);
         Intent intent = new Intent(this, BubbleService.class);
+        intent.putExtra("State",pressedButtons);
         stopService(intent);
         startService(intent);
     }

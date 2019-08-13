@@ -25,12 +25,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-
     dataBinding {
         enabled = true
     }
 }
-
 
 dependencies {
     androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
@@ -45,4 +43,7 @@ dependencies {
     //========================================================================= For TFlite ===============================================================================================
     implementation 'org.tensorflow:tensorflow-lite:+'
     implementation project(path: ':openCVLibrary341')
+
+    implementation 'com.tomergoldst.android:hoverview:1.0.2'
+
 }

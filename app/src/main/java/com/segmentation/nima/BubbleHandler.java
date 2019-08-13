@@ -1,13 +1,14 @@
 package com.segmentation.nima;
 
+import android.animation.Animator;
+import android.animation.ValueAnimator;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import com.segmentation.nima.BubbleService;
 
+import androidx.databinding.Bindable;
 
-// Pay attention to how ClipHandler class uses BubbleService.
 public class BubbleHandler {
     private final BubbleService service;
     private int initialX;
@@ -19,7 +20,6 @@ public class BubbleHandler {
     BubbleHandler(BubbleService service) {
         this.service = service;
     }
-
     public boolean onTouch(View view, MotionEvent motionEvent) {
         WindowManager.LayoutParams params = (WindowManager.LayoutParams) view.getLayoutParams();
         switch (motionEvent.getAction()) {
@@ -29,15 +29,20 @@ public class BubbleHandler {
                 initialY = params.y;
                 initialTouchX = motionEvent.getRawX();
                 initialTouchY = motionEvent.getRawY();
+                service.mSelectionBarBinding.getRoot().setVisibility(View.GONE);
                 break;
             case MotionEvent.ACTION_UP:
                 view.performClick();
                 Log.d("Nima", "onTouch: GlobalStop " + BubbleService.stop);
                 if (Float.compare(moveDistance, 100f) >= 0) {
                     service.checkInCloseRegion(motionEvent.getRawX(), motionEvent.getRawY());
-                } else {
+                    service.updateViewLayout(view, params);
+                    service.trashLayoutRemove();
 
-                    service.startClipMode();
+                } else {
+                    animate(0,0 ,params);
+//                    service.startClipMode();
+
                 }
                 break;
             case MotionEvent.ACTION_MOVE:
@@ -51,6 +56,54 @@ public class BubbleHandler {
         }
 
         return true;
+    }
+    public void animate(
+            final float x,
+            final float y,
+            WindowManager.LayoutParams params) {
+        final float startX = params.x;
+        final float startY = params.y;
+        ValueAnimator animator = ValueAnimator.ofInt(0, 5)
+                .setDuration(100);
+        animator.addUpdateListener(valueAnimator -> {
+            try {
+                float currentX = startX + ((x - startX) *
+                        (Integer) valueAnimator.getAnimatedValue() / 5);
+                float currentY = startY + ((y - startY) *
+                        (Integer) valueAnimator.getAnimatedValue() / 5);
+                    params.x = (int) currentX;
+                    params.x = params.x < 0 ? 0 : params.x;
+                    params.y = (int) currentY;
+                    params.y = params.y < 0 ? 0 : params.y;
+
+                service.updateViewLayout(service.mBubbleLayoutBinding.getRoot(), params);
+                service.trashLayoutRemove();
+
+            } catch (Exception exception) {
+                Log.e("NKO", exception.getMessage());
+            }
+        });
+        animator.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                service.mSelectionBarBinding.getRoot().setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+
+            }
+        });
+        animator.start();
     }
 }
 

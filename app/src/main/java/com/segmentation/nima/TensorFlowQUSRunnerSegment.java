@@ -363,12 +363,9 @@ limitations under the License.
                     //keepNLargestCCs(segment_frame,1);
                     //keepNLargestCCs(landmark_frame,2);
                     // Do something with the result that just got copied into segment_frame
-                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if(mBubbleLayoutBinding != null)
-                            updateViewLayout(mBubbleLayoutBinding.getRoot(), mBubbleLayoutParams);
-                        }
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if(mBubbleLayoutBinding != null)
+                        updateViewLayout(mBubbleLayoutBinding.getRoot(), mBubbleLayoutParams);
                     });
                     // things to do on the main thread
                     QEL.updateSegmentEvent(segment_frame, landmark_frame, full_res, frame_counter);
