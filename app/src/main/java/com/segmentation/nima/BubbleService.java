@@ -25,7 +25,6 @@ import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -232,27 +231,19 @@ public class BubbleService extends Service
 //          Init segmentation buffers
         Bundle Extras = intent.getExtras();
         state = (int) Extras.get("State");
-        if (state == 100) {
-            initial();
-            initial_qus();
-        }
-        else {
-            if (state == 010)
-                current_view = 0; //This loads AP4 model
-            else if (state == 001)
-                current_view = 1; //This should load the AP2 model
-            else
-                Log.e(TAG, "onStartCommand: How the freak??");
 
+        if (state == 010)
+            current_view = 0; //This loads AP4 model
+        else if (state == 001)
+            current_view = 1; //This should load the AP2 model
+// Initiailize necessary stuff
             mBottomSheetHandler = new BottomSheetHandler(this);
             mSeekBar = new SeekBar(this);
-
             iV = new ImageView(this);
             tV = new TextView(this);
             depth_textview = new TextView(this);
             mBottomSheetHandler.settV1(tV);
             mBottomSheetHandler.setSeekBar(mSeekBar);
-
             display_results.setiV(iV);
             QEL = this;
             recorded_segment_data = new byte[SEGNET_INPUT_WIDTH * SEGNET_INPUT_HEIGHT * SEGMENT_RECORD_LENGTH];   // 128*128*100*4 bytes = 6.25 MB
@@ -263,21 +254,16 @@ public class BubbleService extends Service
             outputBitmap = Bitmap.createBitmap(SEGNET_INPUT_WIDTH, SEGNET_INPUT_HEIGHT, Bitmap.Config.ARGB_8888);
             output_pixels = new int[SEGNET_INPUT_WIDTH * SEGNET_INPUT_HEIGHT];
             mEFCalculator.setDepth(depth);
+            handlerThread = new HandlerThread("Inference");
+            handlerThread.start();
+            handler = new Handler(handlerThread.getLooper());
             initial();
-            initial_seg();
-        }
-// ======================================================================= From TF Lite app to enable background image processing ========================================================
-        handlerThread = new HandlerThread("Inference");
-        handlerThread.start();
-        handler = new Handler(handlerThread.getLooper());
-//        handler = new Handler();
+
 // =======================================================================================================================================================================================
         return super.onStartCommand(intent, flags, startId);
     }
 
     private void initial() {
-//      Log.d("kanna", "initial");
-//==================================================================== Inflate all the views and set their proper parameters and Handlers===============================================================================
         LayoutInflater layoutInflater = LayoutInflater.from(this);
         mTrashLayoutBinding = TrashLayoutBinding.inflate(layoutInflater);
         if (mTrashLayoutParams == null) {
@@ -292,22 +278,10 @@ public class BubbleService extends Service
             mBubbleLayoutBinding.bubble1.setBackground(getDrawable(R.drawable.video_camera));
         }
         getWindowManager().addView(mBubbleLayoutBinding.getRoot(),mBubbleLayoutParams);
-
-//        mBubble1 = BubbleLayoutBinding.inflate(layoutInflater);
-//        if (mBubble1Params == null) {
-//            mBubble1Params = buildLayoutParamsForBubble(0, (mBubbleLayoutBinding.getRoot().getHeight()+40)/2);
-//            mBubble1.getRoot().setBackground(getDrawable(R.drawable.segment));
-//        }
-//        getWindowManager().addView(mBubble1.getRoot(), mBubble1Params);
-
         mBubbleLayoutBinding.setHandler(new BubbleHandler(this));
         // Inflate the screensheet here add view later
         mScreenSheetBinding = ScreensheetBinding.inflate(layoutInflater);
         mSelectionBarBinding = SelectionBarBinding.inflate(layoutInflater);
-    }
-    private void initial_seg()
-    {
-        LayoutInflater layoutInflater = LayoutInflater.from(this);
         mBottomsheetBinding = BottomsheetBinding.inflate(layoutInflater);
         if(mBottomsheetlayoutParams == null){
             mBottomsheetlayoutParams = buildLayoutParamsForBottomSheet(0,0);
@@ -341,9 +315,6 @@ public class BubbleService extends Service
                 return;
             }
         }
-    }
-    private void initial_qus(){
-        LayoutInflater layoutInflater = LayoutInflater.from(this);
         mLayoutBottomSheetBinding = LayoutBottomSheetBinding.inflate(layoutInflater);
         if (mLayoutBottomSheetParams == null) {
             mLayoutBottomSheetParams = buildLayoutParamsForBottomSheet(0, 0);
@@ -376,12 +347,93 @@ public class BubbleService extends Service
         }
         getWindowManager().addView(mSelectionBarBinding.getRoot(), mSelectionLayoutParams);
         mSelectionBarBinding.getRoot().setVisibility(View.GONE);
-        mSelectionBarBinding.qusBtn.setOnClickListener(v -> startClipMode());
+        mSelectionBarBinding.qusBtn.setOnClickListener(v -> {
+            stop = true;
+            //Needs proper screen cleanup
+            if(mSelectionBarBinding.getRoot().getVisibility() == View.VISIBLE)
+                mLayoutBottomSheetBinding.getRoot().setVisibility(View.GONE);
+            if(mLayoutBottomSheetBinding.getRoot().getVisibility() != View.VISIBLE)
+                mLayoutBottomSheetBinding.getRoot().setVisibility(View.VISIBLE);
+            if(mScreenSheetBinding.getRoot().getVisibility() != View.GONE)
+                mScreenSheetBinding.getRoot().setVisibility(View.GONE);
+            if(mBottomsheetBinding.getRoot().getVisibility() != View.GONE)
+                mBottomsheetBinding.getRoot().setVisibility(View.GONE);
+           // waiting for the threads to finish processing
+            while(!isProcessDone)
+            {}
+            state = 100;
+            stop = false;
+            if(!hasBeenRunning)
+                startClipMode();
+        });
+        mSelectionBarBinding.ap4Btn.setOnClickListener(v -> {
+            stop = true;
+            current_view = 0;
+            SegmentRunner.close();
+            SegmentRunner =
+                    TensorFlowQUSRunnerSegment.create(
+                            QEL, //TODO: WILL THIS WORK???
+                            getAssets(),
+                            SEGNET_FILENAMES[current_view],
+                            SEGNET_MAGNITUDE,
+                            SEGNET_INPUT_NAME,
+                            SEGNET_OUTPUT_NAME,
+                            LANDMARK_OUTPUT_NAME,
+                            SEGNET_INPUT_DIMS,
+                            SEGNET_OUTPUT_DIMS);
+            //Needs proper screen cleanup
+            if(mSelectionBarBinding.getRoot().getVisibility() == View.VISIBLE)
+                mSelectionBarBinding.getRoot().setVisibility(View.GONE);
+            if(mLayoutBottomSheetBinding.getRoot().getVisibility() == View.VISIBLE)
+                mLayoutBottomSheetBinding.getRoot().setVisibility(View.GONE);
+            if(mScreenSheetBinding.getRoot().getVisibility() != View.VISIBLE)
+                mScreenSheetBinding.getRoot().setVisibility(View.VISIBLE);
+            if(mBottomsheetBinding.getRoot().getVisibility() != View.VISIBLE)
+                mBottomsheetBinding.getRoot().setVisibility(View.VISIBLE);
+           // waiting for the threads to finish processing
+            while(!isProcessDone)
+            {}
+            state = 10;
+            stop = false;
+            if(!hasBeenRunning)
+                startClipMode();
+            else
+                finishClipMode(ClipRegioBubble);
+        });
 
-    }
-
-
-
+        mSelectionBarBinding.ap2Btn.setOnClickListener(v ->
+        {
+            stop = true;
+            current_view = 1;
+            SegmentRunner =
+                    TensorFlowQUSRunnerSegment.create(
+                            QEL, //TODO: WILL THIS WORK???
+                            getAssets(),
+                            SEGNET_FILENAMES[current_view],
+                            SEGNET_MAGNITUDE,
+                            SEGNET_INPUT_NAME,
+                            SEGNET_OUTPUT_NAME,
+                            LANDMARK_OUTPUT_NAME,
+                            SEGNET_INPUT_DIMS,
+                            SEGNET_OUTPUT_DIMS);
+            //Needs proper screen cleanup
+            if(mSelectionBarBinding.getRoot().getVisibility() == View.VISIBLE)
+                mLayoutBottomSheetBinding.getRoot().setVisibility(View.GONE);
+            if(mLayoutBottomSheetBinding.getRoot().getVisibility() == View.VISIBLE)
+                mLayoutBottomSheetBinding.getRoot().setVisibility(View.GONE);
+            if(mScreenSheetBinding.getRoot().getVisibility() != View.VISIBLE)
+                mScreenSheetBinding.getRoot().setVisibility(View.VISIBLE);
+            if(mBottomsheetBinding.getRoot().getVisibility() != View.VISIBLE)
+                mBottomsheetBinding.getRoot().setVisibility(View.VISIBLE);
+            // waiting for the threads to finish processing
+            while(!isProcessDone)
+            {}
+            state = 1;
+            stop = false;
+            if(!hasBeenRunning)
+                startClipMode();
+    });
+}
 
     public WindowManager getWindowManager() {
         if (mWindowManager == null) {
@@ -486,6 +538,7 @@ public class BubbleService extends Service
     }
     //TODO remove this useless method
     public void screenshot(int[] clipRegion){
+        mLayoutBottomSheetBinding.setResult(display_results);
         shotScreen(clipRegion);
     }
     @SuppressLint("CheckResult")
@@ -504,10 +557,6 @@ public class BubbleService extends Service
             imageReader.close();
             imageReader = null;
         }
-//        if(stop)
-//        {
-//            mScreenSheetBinding.getRoot().setVisibility(View.GONE);
-//        }
     }
 
     @Override
@@ -623,14 +672,13 @@ public class BubbleService extends Service
             Display display = getWindowManager().getDefaultDisplay();
             display.getRealSize(screenSize);
             imageReader = ImageReader.newInstance(screenSize.x, screenSize.y,
-                    PixelFormat.RGBA_8888, 1);
+                    PixelFormat.RGBA_8888, 3);
             virtualDisplay = sMediaProjection.createVirtualDisplay("cap", screenSize.x, screenSize.y,
                     metrics.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                     imageReader.getSurface(), null, null);
             ImageReader.OnImageAvailableListener mImageListener =
                     new ImageReader.OnImageAvailableListener() {
                         Image image;
-
                         @Override
                         public void onImageAvailable(ImageReader reader) {
                             try {
@@ -653,7 +701,7 @@ public class BubbleService extends Service
                                 }
                                 else
                                 {
-//                                    getWindowManager().updateViewLayout(iV, mScreenSheetBindingParams);
+//                                  getWindowManager().updateViewLayout(iV, mScreenSheetBindingParams);
                                     //Needs to be done here to avoid errors
                                     resizedOutputBitmap = Bitmap.createBitmap(ClipRegioBubble[2], ClipRegioBubble[3], Bitmap.Config.ARGB_8888);
                                     tV.setText("EF: "+ EF_string );
@@ -688,7 +736,6 @@ public class BubbleService extends Service
                                         iV.setImageBitmap(finalBitmap);
                                         displaySegment();
                                     }
-                                    image.close();
 //                                    long downTime = SystemClock.uptimeMillis();
 //                                    long eventTime = SystemClock.uptimeMillis() + 100;
 //                                    float x = 20.0f;
@@ -703,9 +750,10 @@ public class BubbleService extends Service
 //                                            y,
 //                                            metaState
 //                                    );
-//// Dispatch touch event to view
+// Dispatch touch event to view
 //                                    mScreenSheetBinding.getRoot().dispatchTouchEvent(motionEvent);
                                 }
+                                image.close();
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -728,7 +776,6 @@ public class BubbleService extends Service
                 clipRegion[0], clipRegion[1], clipRegion[2], clipRegion[3]);
         buffer.rewind();
         bitmap.recycle();
-        image.close();
         return bitmapCut;
     }
     protected synchronized void processImage(Bitmap bitmap) {
