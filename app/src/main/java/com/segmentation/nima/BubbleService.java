@@ -432,7 +432,10 @@ public class BubbleService extends Service
             stop = false;
             if(!hasBeenRunning)
                 startClipMode();
+            else
+                finishClipMode(ClipRegioBubble);
     });
+    mSelectionBarBinding.reframeBtn.setOnClickListener(v->startClipMode());
 }
 
     public WindowManager getWindowManager() {
