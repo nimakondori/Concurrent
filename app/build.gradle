@@ -18,7 +18,7 @@ android {
         }
     }
     //========================================================================= For TFlite ===============================================================================================
-    aaptOptions{
+    aaptOptions {
         noCompress "tflite"
     }
     compileOptions {
@@ -31,6 +31,7 @@ android {
 }
 
 dependencies {
+    implementation 'com.google.android.material:material:1.0.0'
     androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })

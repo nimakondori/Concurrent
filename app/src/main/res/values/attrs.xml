@@ -24,5 +24,21 @@
       <enum name="square" value="2"/>
     </attr>
   </declare-styleable>
+  <declare-styleable name="CoachmarkArrow">
+      <attr name="size" format="dimension" />
+      <attr name="color" format="color" />
+      <attr name="from" format="enum">
+          <enum name="topleft" value="0"/>
+          <enum name="topright" value="1"/>
+          <enum name="bottomleft" value="2"/>
+          <enum name="bottomright" value="3"/>
+      </attr>
+      <attr name="to" format="enum">
+          <enum name="topleft" value="0"/>
+          <enum name="topright" value="1"/>
+          <enum name="bottomleft" value="2"/>
+          <enum name="bottomright" value="3"/>
+      </attr>
+  </declare-styleable>
 
 </resources>

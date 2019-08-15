@@ -18,20 +18,19 @@
         android:layout_margin="10dp"
         />
     <ImageButton
-        android:id="@+id/ap2_btn"
+        android:id="@+id/ef"
         android:layout_width="wrap_content"
         android:layout_height="30dp"
-        android:src="@drawable/ap2"
-        android:layout_margin="10dp"
-
-        />
-    <ImageButton
-        android:id="@+id/ap4_btn"
-        android:layout_width="wrap_content"
-        android:layout_height="30dp"
-        android:src="@drawable/ap4"
+        android:src="@drawable/ef"
         android:layout_margin="10dp"
         />
+    <!--<ImageButton-->
+        <!--android:id="@+id/ap4_btn"-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="30dp"-->
+        <!--android:src="@drawable/ap4"-->
+        <!--android:layout_margin="10dp"-->
+        <!--/>-->
     <ImageButton
         android:id="@+id/reframe_btn"
         android:layout_width="wrap_content"

@@ -2,8 +2,7 @@
     <string name="app_name">PartialScreenshots</string>
     <string name="screenshot">Screen shot button</string>
     <string name="real_name">RCL\'s QUS SEG Service</string>
-    <string name="QUS_Button">Quality</string>
-    <string name="SegButton">Segmentation</string>
-    <string name="AP4Button">AP4</string>
-    <string name="AP2Button">AP2</string>
+    <string name="instBtn">INSTRUCTIONS</string>
+    <string name="startBtn">START</string>
+    <string name="title_activity_instruction_">Instruction_Activity</string>
 </resources>
