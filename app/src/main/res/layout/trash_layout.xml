@@ -4,6 +4,6 @@
     <RelativeLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/trash_icon"
+        android:background="@mipmap/trash_icon"
         />
 </layout>

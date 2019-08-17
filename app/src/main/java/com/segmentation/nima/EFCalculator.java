@@ -347,13 +347,15 @@ class Frame {
             }
         });
 
-        // Select the largest two
-        //for (ConnectedComponent cc: ccs) {
-            //Log.i(TAG,id+" - CC x = "+cc.getCOMx()+"\t y = "+cc.getCOMy()+" \t count = "+cc.getCount());
-        //}
+//         Select the largest two
+        for (ConnectedComponent cc: ccs) {
+            Log.i(TAG,id+" - CC x = "+cc.getCOMx()+"\t y = "+cc.getCOMy()+" \t count = "+cc.getCount());
+        }
 
         // Set the top one to be apex and the bottom valve
         int apex_idx, valve_idx;
+        if (ccs.get(1)==null)
+            return;
         apex_idx = (ccs.get(0).getCOMy() < ccs.get(1).getCOMy())? 0 : 1;
         valve_idx = 1 - apex_idx;
         apex[0] = ccs.get(apex_idx).getCOMx();

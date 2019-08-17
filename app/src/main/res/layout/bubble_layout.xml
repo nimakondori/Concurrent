@@ -9,7 +9,7 @@
             android:id="@+id/bubble_1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/circle"
+            android:background="@mipmap/heart"
             android:contentDescription="@string/screenshot"
             android:onTouch="@{handler::onTouch}"
             />
