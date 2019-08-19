@@ -148,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startBubble() {
+        binding.startBtn.setVisibility(View.GONE);
         Intent intent = new Intent(this, BubbleService.class);
         stopService(intent);
         startService(intent);

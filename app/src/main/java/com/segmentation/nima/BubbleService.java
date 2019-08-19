@@ -355,7 +355,7 @@ public class BubbleService extends Service
             stop = true;
             //Needs proper screen cleanup
             if(mSelectionBarBinding.getRoot().getVisibility() == VISIBLE)
-                mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
+                mSelectionBarBinding.getRoot().setVisibility(GONE);
             if(mLayoutBottomSheetBinding.getRoot().getVisibility() != VISIBLE)
                 mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
             if(mScreenSheetBinding.getRoot().getVisibility() != GONE)
@@ -466,7 +466,7 @@ public class BubbleService extends Service
                             SEGNET_OUTPUT_DIMS);
             //Needs proper screen cleanup
             if(mSelectionBarBinding.getRoot().getVisibility() == VISIBLE)
-                mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
+                mSelectionBarBinding.getRoot().setVisibility(GONE);
             if(mLayoutBottomSheetBinding.getRoot().getVisibility() == VISIBLE)
                 mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
             if(mScreenSheetBinding.getRoot().getVisibility() != VISIBLE)
@@ -484,7 +484,10 @@ public class BubbleService extends Service
             else
                 finishClipMode(ClipRegionBubble);
     });
-    mSelectionBarBinding.reframeBtn.setOnClickListener(v->startClipMode());
+    mSelectionBarBinding.reframeBtn.setOnClickListener(v->{
+        startClipMode();
+        mSelectionBarBinding.getRoot().setVisibility(GONE);
+    });
 }
 
     public WindowManager getWindowManager() {
@@ -728,7 +731,7 @@ public class BubbleService extends Service
             Display display = getWindowManager().getDefaultDisplay();
             display.getRealSize(screenSize);
             imageReader = ImageReader.newInstance(screenSize.x, screenSize.y,
-                    PixelFormat.RGBA_8888, 3);
+                    PixelFormat.RGBA_8888, 2);
             virtualDisplay = sMediaProjection.createVirtualDisplay("cap", screenSize.x, screenSize.y,
                     metrics.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                     imageReader.getSurface(), null, null);
@@ -772,20 +775,19 @@ public class BubbleService extends Service
                                         if(wrong_view > 5) {
                                             mBottomsheetBinding.getRoot().setVisibility(GONE);
                                             wrong_view = 0;
-                                            Toast.makeText(BubbleService.this, "View is not supported for Ejection-Fraction calculation", Toast.LENGTH_SHORT).show();
-                                            mSelectionBarBinding.getRoot().setVisibility(VISIBLE);
+                                            Toast.makeText(BubbleService.this, "Only AP4 and AP2 views are supported for Ejection-Fraction calculation", Toast.LENGTH_SHORT).show();
                                             Thread thread = new Thread(new Runnable() {
                                                 @Override
                                                 public void run() {
                                                     try {
-                                                        wait(3000);
+                                                        wait(500);
                                                     } catch (InterruptedException e) {
                                                         e.printStackTrace();
                                                     }
                                                 }
                                             }
                                             );
-                                             mBottomsheetBinding.getRoot().setVisibility(VISIBLE);
+                                             mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
                                              state = QUALITY_STATE;
 
                                         }
@@ -838,6 +840,7 @@ public class BubbleService extends Service
                                             displaySegment();
                                         }
                                     }
+                                    // Simulated touch but it didn't help with the speed
 //                                    long downTime = SystemClock.uptimeMillis();
 //                                    long eventTime = SystemClock.uptimeMillis() + 100;
 //                                    float x = 20.0f;
@@ -1052,7 +1055,7 @@ public class BubbleService extends Service
     }
     private boolean displaySegment()
     {
-        if(displaySegment)
+        if(displaySegment && state == SEGMENTATION_STATE)
             mScreenSheetBinding.getRoot().setVisibility(VISIBLE);
         else
             mScreenSheetBinding.getRoot().setVisibility(GONE);
