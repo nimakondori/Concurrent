@@ -69,9 +69,7 @@ public class BottomSheetHandler extends BaseObservable {
                 service.updateViewLayout(view, params);
                 service.trashLayoutRemove();
                 service.displaySegment=true;
-
                 break;
-
         }
         return true;
     }

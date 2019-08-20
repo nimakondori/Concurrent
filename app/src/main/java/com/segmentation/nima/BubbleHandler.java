@@ -7,8 +7,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
-import androidx.databinding.Bindable;
-
 public class BubbleHandler {
     private final BubbleService service;
     private int initialX;

@@ -17,13 +17,6 @@
         android:src="@drawable/quality"
         android:layout_margin="10dp"
         />
-    <ImageButton
-        android:id="@+id/ef"
-        android:layout_width="wrap_content"
-        android:layout_height="30dp"
-        android:src="@drawable/ef"
-        android:layout_margin="10dp"
-        />
     <!--<ImageButton-->
         <!--android:id="@+id/ap4_btn"-->
         <!--android:layout_width="wrap_content"-->

@@ -31,7 +31,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.segmentation.nima.databinding.BottomsheetBinding;
 import com.segmentation.nima.databinding.BubbleLayoutBinding;
 import com.segmentation.nima.databinding.ClipLayoutBinding;
 import com.segmentation.nima.databinding.LayoutBottomSheetBinding;
@@ -56,12 +55,11 @@ import static com.segmentation.nima.layoutBuilder.buildLayoutParamsForBottomShee
 import static com.segmentation.nima.layoutBuilder.buildLayoutParamsForBubble;
 
 
-
 public class BubbleService extends Service
         implements QUSEventListener {
 
     private static WindowManager mWindowManager;
-    public  BubbleLayoutBinding mBubbleLayoutBinding;
+    public BubbleLayoutBinding mBubbleLayoutBinding;
     public  WindowManager.LayoutParams mBubbleLayoutParams;
     public SelectionBarBinding mSelectionBarBinding;
     public WindowManager.LayoutParams mSelectionLayoutParams;
@@ -74,9 +72,8 @@ public class BubbleService extends Service
     private VirtualDisplay virtualDisplay;
     private ScreensheetBinding mScreenSheetBinding;
     private WindowManager.LayoutParams mScreenSheetBindingParams;
-    private BottomsheetBinding mBottomsheetBinding;
-    private WindowManager.LayoutParams mBottomsheetlayoutParams;
     private LayoutBottomSheetBinding mLayoutBottomSheetBinding;
+    private BottomSheetHandler mLayoutBottomSheetHandler;
     private WindowManager.LayoutParams mLayoutBottomSheetParams;
     private Handler handler;
     private HandlerThread handlerThread;
@@ -87,7 +84,6 @@ public class BubbleService extends Service
     private Bitmap bit;
     private ImageView iV;
     private TextView tV, depth_textview;
-    private BottomSheetHandler mBottomSheetHandler;
     public int[] ClipRegionBubble = new int[4];
     public static boolean displaySegment = false;
     private SeekBar mSeekBar;
@@ -96,6 +92,7 @@ public class BubbleService extends Service
     private final int SEGMENTATION_STATE = 10;
     private final int QUALITY_STATE = 100;
     private int wrong_view = 0;
+    private int segNet_idx = 1;
 
 
     //====================================================================================== QUS Segment  Variables ===================================================================================
@@ -163,14 +160,14 @@ public class BubbleService extends Service
 //        private static int lastPredView;
 
     // Segment Variables
-    private Classifier SegmentRunner;
+    private Classifier SegmentRunner_AP4,SegmentRunner_AP2;
     private Classifier QUSRunner;
     private EFCalculator mEFCalculator;
     private Bitmap outputBitmap, resizedOutputBitmap;           // raw and resized output colormaps
     private int[] output_pixels;                                // pixel vector used to create output Bitmap
     private byte[] recorded_segment_data;                       // recorded 128x128 segmentations
     private byte[] recorded_landmark_data;                     // recorded 128x128 landmark
-    private android.graphics.Matrix outputToResizeTransform;    // resizes the 128x128 output map to the preview dims
+    private Matrix outputToResizeTransform;    // resizes the 128x128 output map to the preview dims
     private static boolean[] valid_segment_frames;
     public boolean EFCalculated;
     private int predicted_view_idx;
@@ -239,13 +236,13 @@ public class BubbleService extends Service
 //        else if (state == 001)
 //            current_view = 1; //This should load the AP2 model
 // Initiailize necessary stuff
-            mBottomSheetHandler = new BottomSheetHandler(this);
+            mLayoutBottomSheetHandler = new BottomSheetHandler(this);
             mSeekBar = new SeekBar(this);
             iV = new ImageView(this);
             tV = new TextView(this);
             depth_textview = new TextView(this);
-            mBottomSheetHandler.settV1(tV);
-            mBottomSheetHandler.setSeekBar(mSeekBar);
+            mLayoutBottomSheetHandler.settV1(tV);
+            mLayoutBottomSheetHandler.setSeekBar(mSeekBar);
             display_results.setiV(iV);
             QEL = this;
             recorded_segment_data = new byte[SEGNET_INPUT_WIDTH * SEGNET_INPUT_HEIGHT * SEGMENT_RECORD_LENGTH];   // 128*128*100*4 bytes = 6.25 MB
@@ -284,23 +281,23 @@ public class BubbleService extends Service
         // Inflate the screensheet here add view later
         mScreenSheetBinding = ScreensheetBinding.inflate(layoutInflater);
         mSelectionBarBinding = SelectionBarBinding.inflate(layoutInflater);
-        mBottomsheetBinding = BottomsheetBinding.inflate(layoutInflater);
-        if(mBottomsheetlayoutParams == null){
-            mBottomsheetlayoutParams = buildLayoutParamsForBottomSheet(0,0);
+        mLayoutBottomSheetBinding = LayoutBottomSheetBinding.inflate(layoutInflater);
+        if (mLayoutBottomSheetParams == null) {
+            mLayoutBottomSheetParams = buildLayoutParamsForBottomSheet(0, 0);
         }
-        getWindowManager().addView(mBottomsheetBinding.getRoot(), mBottomsheetlayoutParams);
-        mBottomsheetBinding.setHandler(mBottomSheetHandler);
-        mBottomsheetBinding.getRoot().setVisibility(GONE);
-        mSeekBar = mBottomsheetBinding.seekBar;
+        getWindowManager().addView(mLayoutBottomSheetBinding.getRoot(), mLayoutBottomSheetParams);
+        mSeekBar = mLayoutBottomSheetBinding.seekBar;
         mSeekBar.setProgress(INITIAL_DEPTH_SETTING);
         addListenerOnDepthSeekBar();
-        depth_textview = mBottomsheetBinding.tVDepth;
-        tV = mBottomsheetBinding.tV;
+        depth_textview = mLayoutBottomSheetBinding.tVDepth;
+        tV = mLayoutBottomSheetBinding.tV;
+        mLayoutBottomSheetBinding.bottomSheetBottom1.setVisibility(GONE);
+        mLayoutBottomSheetBinding.bottomSheetBottom2.setVisibility(GONE);
 
-        if(SegmentRunner == null)
-        {
+        if(SegmentRunner_AP4 == null) {
+            current_view = AP4_VIEW_IDX;
             //initialize segment runner here
-            SegmentRunner =
+            SegmentRunner_AP4 =
                     TensorFlowQUSRunnerSegment.create(
                             QEL, //TODO: WILL THIS WORK???
                             getAssets(),
@@ -312,16 +309,34 @@ public class BubbleService extends Service
                             SEGNET_INPUT_DIMS,
                             SEGNET_OUTPUT_DIMS);
 
-            if(SegmentRunner == null) {
-                Log.e("Nima", "Error has occurred while loading QUSRunner, exiting...");
+
+            if (SegmentRunner_AP4 == null) {
+                Log.e("Nima", "Error has occurred while loading Segment Runner AP4, exiting...");
                 return;
             }
         }
-        mLayoutBottomSheetBinding = LayoutBottomSheetBinding.inflate(layoutInflater);
-        if (mLayoutBottomSheetParams == null) {
-            mLayoutBottomSheetParams = buildLayoutParamsForBottomSheet(0, 0);
+        if(SegmentRunner_AP2 == null) {
+            current_view = AP2_VIEW_IDX;
+            //initialize segment runner here
+            SegmentRunner_AP2 =
+                    TensorFlowQUSRunnerSegment.create(
+                            QEL, //TODO: WILL THIS WORK???
+                            getAssets(),
+                            SEGNET_FILENAMES[current_view],
+                            SEGNET_MAGNITUDE,
+                            SEGNET_INPUT_NAME,
+                            SEGNET_OUTPUT_NAME,
+                            LANDMARK_OUTPUT_NAME,
+                            SEGNET_INPUT_DIMS,
+                            SEGNET_OUTPUT_DIMS);
+
+
+            if (SegmentRunner_AP2 == null) {
+                Log.e("Nima", "Error has occurred while loading Segment Runner AP2, exiting...");
+                return;
+            }
         }
-        getWindowManager().addView(mLayoutBottomSheetBinding.getRoot(), mLayoutBottomSheetParams);
+
         mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
         mLayoutBottomSheetBinding.setHandler(new BottomSheetHandler(this));
         progressBar = mLayoutBottomSheetBinding.progressBar;
@@ -349,7 +364,6 @@ public class BubbleService extends Service
         }
         getWindowManager().addView(mSelectionBarBinding.getRoot(), mSelectionLayoutParams);
         mSelectionBarBinding.getRoot().setVisibility(GONE);
-        mSelectionBarBinding.ef.setVisibility(GONE);
         mSelectionBarBinding.reframeBtn.setVisibility(GONE);
         mSelectionBarBinding.qusBtn.setOnClickListener(v -> {
             stop = true;
@@ -360,8 +374,6 @@ public class BubbleService extends Service
                 mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
             if(mScreenSheetBinding.getRoot().getVisibility() != GONE)
                 mScreenSheetBinding.getRoot().setVisibility(GONE);
-            if(mBottomsheetBinding.getRoot().getVisibility() != GONE)
-                mBottomsheetBinding.getRoot().setVisibility(GONE);
            // waiting for the threads to finish processing
             while(!isProcessDone)
             {}
@@ -370,11 +382,21 @@ public class BubbleService extends Service
             if(!hasBeenRunning)
                 startClipMode();
         });
-//        mSelectionBarBinding.ap4Btn.setOnClickListener(v -> {
-//            stop = true;
+//    mSelectionBarBinding.ef.setOnClickListener(v -> {
+//        stop = true;
+//        mSelectionBarBinding.getRoot().setVisibility(GONE);
+//        mSelectionBarBinding.ef.setVisibility(GONE);
+//        if(predicted_view_idx == 2) {
 //            current_view = 0;
-//            SegmentRunner.close();
-//            SegmentRunner =
+//        }
+//        else if (predicted_view_idx == 0){
+//        current_view = 1;
+//        }
+//        else {
+//            Log.e(TAG, "initial: state error occured");
+//            return;
+//        }
+//        SegmentRunner =
 //                    TensorFlowQUSRunnerSegment.create(
 //                            QEL, //TODO: WILL THIS WORK???
 //                            getAssets(),
@@ -386,104 +408,25 @@ public class BubbleService extends Service
 //                            SEGNET_INPUT_DIMS,
 //                            SEGNET_OUTPUT_DIMS);
 //            //Needs proper screen cleanup
-//            if(mSelectionBarBinding.getRoot().getVisibility() == View.VISIBLE)
-//                mSelectionBarBinding.getRoot().setVisibility(View.GONE);
-//            if(mLayoutBottomSheetBinding.getRoot().getVisibility() == View.VISIBLE)
-//                mLayoutBottomSheetBinding.getRoot().setVisibility(View.GONE);
-//            if(mScreenSheetBinding.getRoot().getVisibility() != View.VISIBLE)
-//                mScreenSheetBinding.getRoot().setVisibility(View.VISIBLE);
-//            if(mBottomsheetBinding.getRoot().getVisibility() != View.VISIBLE)
-//                mBottomsheetBinding.getRoot().setVisibility(View.VISIBLE);
-//           // waiting for the threads to finish processing
-//            while(!isProcessDone)
-//            {}
-//            state = 10;
-//            stop = false;
-//            if(!hasBeenRunning)
-//                startClipMode();
-//            else
-//                finishClipMode(ClipRegionBubble);
-//        });
-//
-//        mSelectionBarBinding.ap2Btn.setOnClickListener(v ->
-//        {
-//            stop = true;
-//            current_view = 1;
-//            SegmentRunner =
-//                    TensorFlowQUSRunnerSegment.create(
-//                            QEL, //TODO: WILL THIS WORK???
-//                            getAssets(),
-//                            SEGNET_FILENAMES[current_view],
-//                            SEGNET_MAGNITUDE,
-//                            SEGNET_INPUT_NAME,
-//                            SEGNET_OUTPUT_NAME,
-//                            LANDMARK_OUTPUT_NAME,
-//                            SEGNET_INPUT_DIMS,
-//                            SEGNET_OUTPUT_DIMS);
-//            //Needs proper screen cleanup
-//            if(mSelectionBarBinding.getRoot().getVisibility() == View.VISIBLE)
-//                mLayoutBottomSheetBinding.getRoot().setVisibility(View.GONE);
-//            if(mLayoutBottomSheetBinding.getRoot().getVisibility() == View.VISIBLE)
-//                mLayoutBottomSheetBinding.getRoot().setVisibility(View.GONE);
-//            if(mScreenSheetBinding.getRoot().getVisibility() != View.VISIBLE)
-//                mScreenSheetBinding.getRoot().setVisibility(View.VISIBLE);
-//            if(mBottomsheetBinding.getRoot().getVisibility() != View.VISIBLE)
-//                mBottomsheetBinding.getRoot().setVisibility(View.VISIBLE);
+//            if(mSelectionBarBinding.getRoot().getVisibility() == VISIBLE)
+//                mSelectionBarBinding.getRoot().setVisibility(GONE);
+//            if(mLayoutBottomSheetBinding.getRoot().getVisibility() == VISIBLE)
+//                mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
+//            if(mScreenSheetBinding.getRoot().getVisibility() != VISIBLE)
+//                mScreenSheetBinding.getRoot().setVisibility(VISIBLE);
+//            if(mBottomsheetBinding.getRoot().getVisibility() != VISIBLE)
+//                mBottomsheetBinding.getRoot().setVisibility(VISIBLE);
 //            // waiting for the threads to finish processing
+//            // TODO is it really necessary?
 //            while(!isProcessDone)
 //            {}
-//            state = 1;
-//            stop = false;
+//        state = SEGMENTATION_STATE;
+//        stop = false;
 //            if(!hasBeenRunning)
 //                startClipMode();
 //            else
 //                finishClipMode(ClipRegionBubble);
 //    });
-    mSelectionBarBinding.ef.setOnClickListener(v -> {
-        stop = true;
-        mSelectionBarBinding.getRoot().setVisibility(GONE);
-        mSelectionBarBinding.ef.setVisibility(GONE);
-        if(predicted_view_idx == 2) {
-            current_view = 0;
-        }
-        else if (predicted_view_idx == 0){
-        current_view = 1;
-        }
-        else {
-            Log.e(TAG, "initial: state error occured");
-            return;
-        }
-        SegmentRunner =
-                    TensorFlowQUSRunnerSegment.create(
-                            QEL, //TODO: WILL THIS WORK???
-                            getAssets(),
-                            SEGNET_FILENAMES[current_view],
-                            SEGNET_MAGNITUDE,
-                            SEGNET_INPUT_NAME,
-                            SEGNET_OUTPUT_NAME,
-                            LANDMARK_OUTPUT_NAME,
-                            SEGNET_INPUT_DIMS,
-                            SEGNET_OUTPUT_DIMS);
-            //Needs proper screen cleanup
-            if(mSelectionBarBinding.getRoot().getVisibility() == VISIBLE)
-                mSelectionBarBinding.getRoot().setVisibility(GONE);
-            if(mLayoutBottomSheetBinding.getRoot().getVisibility() == VISIBLE)
-                mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
-            if(mScreenSheetBinding.getRoot().getVisibility() != VISIBLE)
-                mScreenSheetBinding.getRoot().setVisibility(VISIBLE);
-            if(mBottomsheetBinding.getRoot().getVisibility() != VISIBLE)
-                mBottomsheetBinding.getRoot().setVisibility(VISIBLE);
-            // waiting for the threads to finish processing
-            // TODO is it really necessary?
-            while(!isProcessDone)
-            {}
-        state = SEGMENTATION_STATE;
-        stop = false;
-            if(!hasBeenRunning)
-                startClipMode();
-            else
-                finishClipMode(ClipRegionBubble);
-    });
     mSelectionBarBinding.reframeBtn.setOnClickListener(v->{
         startClipMode();
         mSelectionBarBinding.getRoot().setVisibility(GONE);
@@ -510,13 +453,15 @@ public class BubbleService extends Service
         if (Float.compare(x, closeRegion[0]) >= 0 &&
                 Float.compare(y, closeRegion[1]) >= 0 &&
                 Float.compare(x, closeRegion[2]) <= 0 &&
-                Float.compare(3, closeRegion[3]) <= 0) {
+                Float.compare(y, closeRegion[3]) <= 0) {
             stop = true;
             finalRelease();
             if(QUSRunner != null)
                 QUSRunner.close();
-            if(SegmentRunner != null)
-                SegmentRunner.close();
+            if(SegmentRunner_AP2 != null)
+                SegmentRunner_AP2.close();
+            if(SegmentRunner_AP4 != null)
+                SegmentRunner_AP4.close();
             stopSelf();
         } else {
             mTrashLayoutBinding.getRoot().setVisibility(GONE);
@@ -570,26 +515,21 @@ public class BubbleService extends Service
             Toast.makeText(this, "Region is too small. Try Again", Toast.LENGTH_LONG).show();
             mClipLayoutBinding.getRoot().setVisibility(GONE);
             mScreenSheetBinding.getRoot().setVisibility(GONE);
-            mBottomsheetBinding.getRoot().setVisibility(GONE);
             mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
             mBubbleLayoutBinding.getRoot().setVisibility(VISIBLE);
 
         } else {
-            if(state != QUALITY_STATE)
-            {
+
                 outputToResizeTransform = ImageUtils.getTransformationMatrix(
                         SEGNET_INPUT_WIDTH, SEGNET_INPUT_HEIGHT,
                         ClipRegionBubble[2], ClipRegionBubble[3],
                         0, false);
                 if (mScreenSheetBindingParams == null) {
-                    mScreenSheetBindingParams = layoutBuilder.buildLayoutParamsForSheet(clipRegion[0],clipRegion[1], clipRegion);
+                    mScreenSheetBindingParams = layoutBuilder.buildLayoutParamsForSheet(clipRegion[0],clipRegion[1]-getStatusBarHeight(), clipRegion);
                     getWindowManager().addView(mScreenSheetBinding.getRoot(), mScreenSheetBindingParams);
                 }
                 iV = mScreenSheetBinding.ImageView;
-                mBottomsheetBinding.getRoot().setVisibility(VISIBLE);
-            } else {
-                mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
-            }
+//                mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
             screenshot(clipRegion);
             mClipLayoutBinding.getRoot().setVisibility(GONE);
         }
@@ -640,9 +580,6 @@ public class BubbleService extends Service
             }
             if (mClipLayoutBinding != null) {
                 mWindowManager.removeView(mClipLayoutBinding.getRoot());
-            }
-            if (mBottomsheetBinding != null) {
-                mWindowManager.removeView(mBottomsheetBinding.getRoot());
             }
             if (mLayoutBottomSheetBinding != null) {
                 mWindowManager.removeView(mLayoutBottomSheetBinding.getRoot());
@@ -741,24 +678,28 @@ public class BubbleService extends Service
                         @Override
                         public void onImageAvailable(ImageReader reader) {
                             try {
-                                Context context = getApplicationContext();
-                                Log.e(TAG, "onImageAvailable:" + context.toString() );
-                                if(predicted_view_idx == 2 || predicted_view_idx == 0)
-                                {
-                                    mSelectionBarBinding.ef.setVisibility(VISIBLE);
-                                }
-                                else {
-                                    mSelectionBarBinding.ef.setVisibility(GONE);
-                                }
                                 image = imageReader.acquireLatestImage();
                                 if (image == null) {
                                     Log.d("Nima", "No image => Freak out");
                                     return;
                                 }
+                                if(predicted_view_idx != AP2_IDX && predicted_view_idx != AP4_IDX)   // This is different from the AP4_View_Index  pay attention
+                                {
+                                    wrong_view++;
+                                    if(wrong_view > 1)
+                                        wrong_view = 0;
+                                    state = QUALITY_STATE;
+                                    //state = QUALITY_STATE;
+                                }
+                                else
+                                {
+                                    wrong_view = 0;
+                                    mLayoutBottomSheetBinding.bottomSheetBottom1.setVisibility(VISIBLE);
+                                    mLayoutBottomSheetBinding.bottomSheetBottom2.setVisibility(VISIBLE);
+                                    mLayoutBottomSheetBinding.tV.setVisibility(VISIBLE);
+                                    state = SEGMENTATION_STATE;
+                                }
                                 if (state == QUALITY_STATE) {
-//                                    finalTime = System.currentTimeMillis() -initialTime;
-//                                    initialTime = System.currentTimeMillis();
-//                                    Log.d("Nima", "onImageAvailable: time between frames = " + finalTime);
                                     bitmapCut = createBitmap(image, clipRegion);
                                     Log.e("nima", "Count:" + count);
                                     // The GLOBAL.stop is checked there to avoid the error when terminating the application
@@ -766,45 +707,18 @@ public class BubbleService extends Service
                                         processImage(bitmapCut);
                                     }
                                     displayResults(filt_mean, filt_std);
+                                    mLayoutBottomSheetBinding.bottomSheetBottom1.setVisibility(GONE);
+                                    mLayoutBottomSheetBinding.bottomSheetBottom2.setVisibility(GONE);
+                                    mLayoutBottomSheetBinding.tV.setVisibility(GONE);
                                 }
-                                else
-                                {
-                                    if(predicted_view_idx != 0 && predicted_view_idx != 2)
-                                    {
-                                        wrong_view++;
-                                        if(wrong_view > 5) {
-                                            mBottomsheetBinding.getRoot().setVisibility(GONE);
-                                            wrong_view = 0;
-                                            Toast.makeText(BubbleService.this, "Only AP4 and AP2 views are supported for Ejection-Fraction calculation", Toast.LENGTH_SHORT).show();
-                                            Thread thread = new Thread(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    try {
-                                                        wait(500);
-                                                    } catch (InterruptedException e) {
-                                                        e.printStackTrace();
-                                                    }
-                                                }
-                                            }
-                                            );
-                                             mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
-                                             state = QUALITY_STATE;
-
-                                        }
-                                        //state = QUALITY_STATE;
-                                    }
-                                    else
-                                    {
-                                        wrong_view = 0;
-                                    }
-//                                  getWindowManager().updateViewLayout(iV, mScreenSheetBindingParams);
+                                else{
+                                    if (predicted_view_idx == AP4_IDX)
+                                        segNet_idx = AP4_VIEW_IDX;     // AP4 segnet
+                                    else if (predicted_view_idx == AP2_IDX)
+                                        segNet_idx = AP2_VIEW_IDX;    //Ap2 segnet
                                     //Needs to be done here to avoid errors
                                     resizedOutputBitmap = Bitmap.createBitmap(ClipRegionBubble[2], ClipRegionBubble[3], Bitmap.Config.ARGB_8888);
                                     tV.setText("EF: "+ EF_string );
-//                                finalTime = System.currentTimeMillis() -initialTime;
-//                                initialTime = System.currentTimeMillis();
-//                                        Log.d("Nima", "onImageAvailable: time between frames = " + finalTime);
-
                                     Image.Plane[] planes = image.getPlanes();
                                     ByteBuffer buffer = planes[0].getBuffer();
                                     int pixelStride = planes[0].getPixelStride();
@@ -818,15 +732,12 @@ public class BubbleService extends Service
                                             clipRegion[0], clipRegion[1], clipRegion[2], clipRegion[3]);
 //                                            Log.e("nima", "Count:" + count);
 
-                                    // The GLOBAL.stop is checked there to avoid the error when terminating the application
-
+                                    // The stop is checked there to avoid the error when terminating the application
                                     if (!stop && isProcessDone) {
-                                        if (count > 3)
-                                        {
+                                        if (count > 3) {
                                             processImage(bitmapCut);
                                             count = 0;
-                                        }
-                                        else {
+                                        } else {
                                             processImage(bitmapCut, bitmap, frame_counter);
                                             count++;
                                             frame_counter++;
@@ -840,24 +751,8 @@ public class BubbleService extends Service
                                             displaySegment();
                                         }
                                     }
-                                    // Simulated touch but it didn't help with the speed
-//                                    long downTime = SystemClock.uptimeMillis();
-//                                    long eventTime = SystemClock.uptimeMillis() + 100;
-//                                    float x = 20.0f;
-//                                    float y = 20.0f;
-//// List of meta states found here: developer.android.com/reference/android/view/KeyEvent.html#getMetaState()
-//                                    int metaState = 0;
-//                                    MotionEvent motionEvent = MotionEvent.obtain(
-//                                            downTime,
-//                                            eventTime,
-//                                            MotionEvent.ACTION_DOWN,
-//                                            x,
-//                                            y,
-//                                            metaState
-//                                    );
-// Dispatch touch event to view
-//                                    mScreenSheetBinding.getRoot().dispatchTouchEvent(motionEvent);
                                 }
+                                displayResults(filt_mean, filt_std);
                                 image.close();
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -867,6 +762,7 @@ public class BubbleService extends Service
             imageReader.setOnImageAvailableListener(mImageListener, null);
         }
     }
+
     private Bitmap createBitmap(Image image, int[] clipRegion) {
         Image.Plane[] planes = image.getPlanes();
         ByteBuffer buffer = planes[0].getBuffer();
@@ -935,18 +831,20 @@ public class BubbleService extends Service
         canvas.drawBitmap(bitmapCut, prev2seg, null); // Draws the scaled version of bitmap onto bit
 // ======================================================================================================================= Run network ========================================================================================================
 //            runInBackground(() -> {
-        if (SegmentRunner != null) {
+        if (SegmentRunner_AP4 != null && segNet_idx == AP4_VIEW_IDX) {
             // Add a frame counter to count how many frames were segmented?????
-            SegmentRunner.scoreImage(bit, bitmapCut, frame_counter);
+            SegmentRunner_AP4.scoreImage(bit, bitmapCut, frame_counter);
+            Log.i(TAG, "processImage: AP4 running");
 
-            isProcessDone = true;
-            //                   ++;
-//                        double processTime = System.currentTimeMillis() - initial;
-//                        Log.i("Nima", "ScoreTime = " + processTime);
-// ===================================================================================================================== Sets the results ===================================================================================================
         }
-//            });
-    }
+        else if(SegmentRunner_AP2 != null && segNet_idx == AP2_VIEW_IDX) {
+            SegmentRunner_AP2.scoreImage(bit, bitmapCut, frame_counter);
+            Log.i(TAG, "processImage: AP2 running");
+        }
+        else
+            Log.e(TAG, "processImage: No SegRunners available");
+        isProcessDone = true;
+  }
     protected void runInBackground(final Runnable r) {
         if (handler != null) {                                          // handler.post, posts a message to the handler
             handler.post(r);                                            // .post is used to when you want to run some unknown code on UI thread
@@ -1022,14 +920,14 @@ public class BubbleService extends Service
     }
 //TODO remember to fix the status bar
 
-    //  public int getStatusBarHeight() {
-//        int height = 0;
-//        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-//        if (resourceId > 0) {
-//            height = getResources().getDimensionPixelSize(resourceId);
-//        }
-//        return height;
-//    }
+      public int getStatusBarHeight() {
+        int height = 0;
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            height = getResources().getDimensionPixelSize(resourceId);
+        }
+        return height;
+    }
     private Bitmap detectEdges(Bitmap bitmap) {
         Mat rgba = new Mat();
         Utils.bitmapToMat(bitmap, rgba);

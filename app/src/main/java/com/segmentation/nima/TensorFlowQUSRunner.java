@@ -39,9 +39,9 @@ import static com.segmentation.nima.BubbleService.PLAX_IDX;
 import static com.segmentation.nima.BubbleService.PSAXM_IDX;
 import static com.segmentation.nima.BubbleService.SUBC4_IDX;
 import static com.segmentation.nima.BubbleService.UNINIT_IDX;
-import com.segmentation.nima.BubbleService;
 
 // Nima: Implements the interface, so methods should be defined here
+
 /** A classifier specialized to label images using TensorFlow. */
 public class TensorFlowQUSRunner implements Classifier {
 

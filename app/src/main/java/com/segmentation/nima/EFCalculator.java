@@ -354,7 +354,7 @@ class Frame {
 
         // Set the top one to be apex and the bottom valve
         int apex_idx, valve_idx;
-        if (ccs.get(1)==null)
+        if (ccs.size()==1)
             return;
         apex_idx = (ccs.get(0).getCOMy() < ccs.get(1).getCOMy())? 0 : 1;
         valve_idx = 1 - apex_idx;
