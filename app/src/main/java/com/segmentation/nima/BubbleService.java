@@ -286,13 +286,14 @@ public class BubbleService extends Service
             mLayoutBottomSheetParams = buildLayoutParamsForBottomSheet(0, 0);
         }
         getWindowManager().addView(mLayoutBottomSheetBinding.getRoot(), mLayoutBottomSheetParams);
+        mLayoutBottomSheetBinding.bottomSheetBottom1.setVisibility(GONE);
+        mLayoutBottomSheetBinding.bottomSheetBottom2.setVisibility(GONE);
         mSeekBar = mLayoutBottomSheetBinding.seekBar;
         mSeekBar.setProgress(INITIAL_DEPTH_SETTING);
         addListenerOnDepthSeekBar();
         depth_textview = mLayoutBottomSheetBinding.tVDepth;
         tV = mLayoutBottomSheetBinding.tV;
-        mLayoutBottomSheetBinding.bottomSheetBottom1.setVisibility(GONE);
-        mLayoutBottomSheetBinding.bottomSheetBottom2.setVisibility(GONE);
+
 
         if(SegmentRunner_AP4 == null) {
             current_view = AP4_VIEW_IDX;
@@ -365,13 +366,10 @@ public class BubbleService extends Service
         getWindowManager().addView(mSelectionBarBinding.getRoot(), mSelectionLayoutParams);
         mSelectionBarBinding.getRoot().setVisibility(GONE);
         mSelectionBarBinding.reframeBtn.setVisibility(GONE);
+        //============================================================================== Button Listener ==============================================================================
         mSelectionBarBinding.qusBtn.setOnClickListener(v -> {
             stop = true;
             //Needs proper screen cleanup
-            if(mSelectionBarBinding.getRoot().getVisibility() == VISIBLE)
-                mSelectionBarBinding.getRoot().setVisibility(GONE);
-            if(mLayoutBottomSheetBinding.getRoot().getVisibility() != VISIBLE)
-                mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
             if(mScreenSheetBinding.getRoot().getVisibility() != GONE)
                 mScreenSheetBinding.getRoot().setVisibility(GONE);
            // waiting for the threads to finish processing
@@ -476,6 +474,8 @@ public class BubbleService extends Service
     public void startClipMode() {
         mSelectionBarBinding.getRoot().setVisibility(GONE);
         mBubbleLayoutBinding.getRoot().setVisibility(GONE);
+        if(mLayoutBottomSheetBinding.getRoot().getVisibility() != VISIBLE)
+            mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
         stop = true;
         mTrashLayoutBinding.getRoot().setVisibility(GONE);
         isClipMode = true;
@@ -504,6 +504,7 @@ public class BubbleService extends Service
         if(hasBeenRunning)
             mSelectionBarBinding.reframeBtn.setVisibility(VISIBLE);
         mBubbleLayoutBinding.getRoot().setVisibility(VISIBLE);
+        mLayoutBottomSheetBinding.getRoot().setVisibility(VISIBLE);
         isClipMode = false;
         stop = false;
         ClipRegionBubble = clipRegion;
@@ -517,7 +518,6 @@ public class BubbleService extends Service
             mScreenSheetBinding.getRoot().setVisibility(GONE);
             mLayoutBottomSheetBinding.getRoot().setVisibility(GONE);
             mBubbleLayoutBinding.getRoot().setVisibility(VISIBLE);
-
         } else {
 
                 outputToResizeTransform = ImageUtils.getTransformationMatrix(

@@ -6,16 +6,13 @@
     <string name="startBtn">START</string>
     <string name="title_activity_instruction_">HOW TO USE THE APP </string>
     <string name="Description_1">1.\tTo use the app click on the start button in the main menu. This will trigger a bubble on the screen that can be moved around on the screen\n\n
-    2.\tOpen the app that contains a heart view ultrasound that you want analyze\n\n
+    2.\tOpen your preferred app that contains the ultrasound images of heart that you want analyze\n\n
     3.\tClick on the bubble, and you will see a menu pop up under the bubble\n\n
-    4.\tClick on the quality. Place your finger on one fo the corners of the heart image and slide your finger diagonally to choose the frame that contains the heart view\n\n
-    \t\t\t\t - If the frame is not ideal, you can click on the bubble again and click on REFRAME button to choose the frame again
-    5.\tYou will see another pop up that has a quality bar and a view prediction field\n\n
-    6.\tIf the predicted view is AP4 or AP2, you can see the ejection fraction calculation
-        along with the heart Left Ventricle segmentation. To do that, click on the bubble and click on the segmentation button\n\n
-    7.\t Remember that if the heart view changes while the app is doing the segmentation then the EF calculation and Segmentation might not be accurate.\n
-    To maximize the accuracy, run the quality module again then go back to segmentation if it is available for the new heart view\n\n
-    8.\tThis will trigger remove the quality bar and add another tool that has the EF calculations and pressing on that bar will show the live LV segmentation\n\n\n
+    4.\tClick on the QUALITY button. To choose the frame place your finger on the screen and slide diagonally to pick the correct size\n\n
+    \t\t\t\t - If the frame is not ideal, you can click on the bubble again and click on REFRAME button to choose the frame again \n\n
+    5.\tAfter the size is chosen, a new layout pops up that contains the quality bar, predicted view and ejection fraction calculation ( EF is available for AP4 and AP2 views only)\n\n
+    7.\tRemember that to get the most accurate EF calculation the heart view quality ideally needs to be high (green region)\n
+    8. To stop the app move the bubble into the the cancel icon at the bottom of the screen\n\n
     This app was developed by Robotics and Control Labs in University of British Columbia for research purposes only.\n</string>
 
 
